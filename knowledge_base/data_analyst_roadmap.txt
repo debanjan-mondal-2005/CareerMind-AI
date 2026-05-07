@@ -1,0 +1,63 @@
+Data Analyst Career Roadmap
+
+Purpose:
+This document guides students who want to become Data Analysts.
+
+Role Overview:
+A Data Analyst converts raw data into useful insights. The role focuses on cleaning data, analyzing business trends, creating dashboards, writing SQL queries, and communicating insights to stakeholders.
+
+Core Skills:
+1. Excel
+2. SQL
+3. Python basics
+4. Statistics basics
+5. Data visualization
+6. Power BI or Tableau
+7. Business understanding
+8. Report writing
+9. Dashboard design
+10. Communication
+
+Excel Skills:
+Learn formulas, pivot tables, charts, lookup functions, conditional formatting, data cleaning, and dashboard basics.
+
+SQL Skills:
+Learn SELECT, WHERE, GROUP BY, HAVING, ORDER BY, JOINs, subqueries, aggregate functions, window functions, and case statements.
+
+Python Skills:
+Learn Pandas, NumPy, Matplotlib, Seaborn basics, CSV handling, data cleaning, grouping, filtering, and visualization.
+
+Dashboard Skills:
+Learn Power BI or Tableau. Understand measures, filters, slicers, KPIs, charts, data model, and storytelling.
+
+Projects:
+1. Sales Dashboard
+2. Customer Segmentation Analysis
+3. HR Attrition Dashboard
+4. Student Performance Analysis
+5. E-commerce Sales Analysis
+6. Bank Customer Analysis
+7. Marketing Campaign Analysis
+8. Product Review Dashboard
+9. Expense Analysis Dashboard
+10. IPL/Cricket Data Analysis
+
+Interview Questions:
+1. What is the difference between WHERE and HAVING?
+2. What are joins in SQL?
+3. What is a pivot table?
+4. How do you handle missing values?
+5. What is correlation?
+6. How do you create a dashboard?
+7. What is KPI?
+8. How do you explain insights to non-technical users?
+9. What is data cleaning?
+10. Explain one data analysis project.
+
+Roadmap:
+Month 1: Excel + SQL basics
+Month 2: Advanced SQL + statistics basics
+Month 3: Python for analysis
+Month 4: Power BI/Tableau
+Month 5: Portfolio projects
+Month 6: Resume and interview preparation

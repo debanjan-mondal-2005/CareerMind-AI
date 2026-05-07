@@ -1,0 +1,174 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareerMind AI</title>
+    <link rel="stylesheet" href="style.css?v=33">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Markdown parser for rich responses -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+
+    <!-- Register Section -->
+    <section id="register-section" class="auth-card">
+        <div class="auth-box">
+            <div class="brand-mark">CM</div>
+            <h2>Create Your Account</h2>
+            <p class="auth-subtitle">Start your personalized AI career journey</p>
+
+            <form onsubmit="event.preventDefault(); registerStudent();" autocomplete="off">
+                <div class="form-group">
+                    <input type="text" id="reg-first-name" placeholder="First Name" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <input type="text" id="reg-middle-name" placeholder="Middle Name (Optional)" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <input type="text" id="reg-last-name" placeholder="Last Name" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <input type="email" id="reg-email" placeholder="Email Address" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <input type="password" id="reg-password" placeholder="Password (min 6 characters)" required autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn-primary">Create Account</button>
+            </form>
+
+            <div id="register-result"></div>
+
+            <p class="auth-footer">
+                Already have an account?
+                <button class="link-btn" onclick="showLogin()">Sign in</button>
+            </p>
+        </div>
+    </section>
+
+    <!-- Login Section -->
+    <section id="login-section" class="auth-card hidden">
+        <div class="auth-box">
+            <div class="brand-mark">CM</div>
+            <h2>Welcome Back</h2>
+            <p class="auth-subtitle">Sign in to continue your career journey</p>
+
+            <form onsubmit="event.preventDefault(); loginStudent();">
+                <div class="form-group">
+                    <input type="text" id="login-key" placeholder="Student Key" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn-primary">Sign In</button>
+            </form>
+
+            <div id="login-result"></div>
+
+            <p class="auth-footer">
+                Don't have an account?
+                <button class="link-btn" onclick="showRegister()">Create one</button>
+            </p>
+        </div>
+    </section>
+
+    <!-- Onboarding Section -->
+    <section id="onboarding-section" class="auth-card hidden">
+        <div class="auth-box auto-height">
+            <div class="brand-mark">CM</div>
+            <h2>Build Your Profile</h2>
+            <p class="auth-subtitle">CareerMind AI will personalize answers using this profile</p>
+
+            <form id="onboarding-form" onsubmit="event.preventDefault(); submitOnboarding();">
+                <div id="onboarding-questions-container"></div>
+                <button type="submit" class="btn-primary" id="onboarding-submit">Complete Setup</button>
+            </form>
+
+            <div id="onboarding-result"></div>
+        </div>
+    </section>
+
+    <!-- Chat Dashboard -->
+    <section id="dashboard-section" class="dashboard-layout hidden">
+
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">CM</div>
+                <div>
+                    <h2>CareerMind AI</h2>
+                    <p>AI Career Mentor</p>
+                </div>
+            </div>
+
+            <button class="new-chat-btn" onclick="startNewChat()">
+                <i class="fa-solid fa-plus"></i>
+                <span>New Chat</span>
+            </button>
+
+            <div class="chat-history">
+                <p class="sidebar-label">Chats</p>
+                <div id="history-list"></div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="btn-logout" onclick="logout()">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    <span>Log out</span>
+                </button>
+            </div>
+
+            <div class="sidebar-resize-handle" id="sidebar-resize-handle"></div>
+        </nav>
+
+        <!-- Main Chat Area -->
+        <main class="chat-main">
+            <header class="mobile-header">
+                <button class="menu-btn" onclick="toggleSidebar()">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <h2>CareerMind AI</h2>
+            </header>
+
+            <div class="chat-window" id="chat-window">
+                <div class="welcome-screen" id="welcome-screen">
+                    <div class="welcome-logo">CM</div>
+                    <h2>CareerMind AI</h2>
+                    <h3 id="welcome-message">Welcome Back!</h3>
+                    <p>Your personal AI career mentor is ready.</p>
+                    <div class="suggestion-grid">
+                        <button onclick="useSuggestion('What should I learn next to become a Data Scientist?')">What should I learn next?</button>
+                        <button onclick="useSuggestion('Suggest projects for my career goal')">Suggest projects</button>
+                        <button onclick="useSuggestion('Prepare me for interviews')">Interview preparation</button>
+                        <button onclick="useSuggestion('What are the latest skills required for my goal?')">Latest skills</button>
+                    </div>
+                </div>
+                <div id="output-area" class="output-area"></div>
+            </div>
+
+            <div class="chat-input-wrapper">
+                <div class="chat-input-container">
+                    <!-- PDF upload button (hidden file input) -->
+                    <input type="file" id="pdf-upload-input" accept=".pdf" style="display:none" onchange="uploadPDF()">
+                    <button class="attach-btn" onclick="document.getElementById('pdf-upload-input').click()" title="Attach PDF">
+                        <i class="fa-solid fa-paperclip"></i>
+                    </button>
+
+                    <textarea id="user-question" placeholder="Message CareerMind AI..." rows="1"></textarea>
+
+                    <button class="send-btn" onclick="askSmartAgent()" id="send-button" title="Send message">
+                        <i class="fa-solid fa-arrow-up"></i>
+                    </button>
+                </div>
+                <div class="disclaimer">
+                    CareerMind AI can make mistakes. Verify important career, job, and application information.
+                </div>
+            </div>
+        </main>
+
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    </section>
+
+    <script src="script.js?v=33"></script>
+</body>
+</html>

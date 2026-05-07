@@ -1,0 +1,115 @@
+Interview Questions and Preparation Guide
+
+General HR Questions:
+1. Tell me about yourself.
+2. Why did you choose this career path?
+3. What are your strengths?
+4. What are your weaknesses?
+5. Tell me about your best project.
+6. Why should we hire you?
+7. Where do you see yourself in five years?
+8. How do you handle pressure?
+9. Tell me about a challenge you faced.
+10. Are you comfortable working in a team?
+
+Data Science Questions:
+1. What is supervised learning?
+2. What is unsupervised learning?
+3. Difference between classification and regression.
+4. What is overfitting?
+5. How do you reduce overfitting?
+6. What is underfitting?
+7. What is train-test split?
+8. What is cross-validation?
+9. What is feature engineering?
+10. What is data leakage?
+11. What is precision?
+12. What is recall?
+13. What is F1-score?
+14. What is confusion matrix?
+15. What is ROC-AUC?
+16. What is linear regression?
+17. What is logistic regression?
+18. What is decision tree?
+19. What is random forest?
+20. What is gradient boosting?
+
+SQL Questions:
+1. Difference between WHERE and HAVING.
+2. Explain INNER JOIN.
+3. Explain LEFT JOIN.
+4. What is GROUP BY?
+5. What are aggregate functions?
+6. What is a subquery?
+7. What is a primary key?
+8. What is a foreign key?
+9. What is normalization?
+10. What are window functions?
+
+Python Questions:
+1. What are lists and tuples?
+2. What is dictionary?
+3. What is set?
+4. What is list comprehension?
+5. What is exception handling?
+6. What is OOP?
+7. What is inheritance?
+8. What is a lambda function?
+9. Difference between shallow copy and deep copy.
+10. What are Python modules?
+
+Machine Learning Project Questions:
+1. Why did you choose this dataset?
+2. What preprocessing did you perform?
+3. How did you handle missing values?
+4. How did you handle outliers?
+5. Which algorithm did you use and why?
+6. How did you evaluate the model?
+7. Did you check overfitting?
+8. What are the limitations of your project?
+9. How did you deploy the model?
+10. How will you monitor the model after deployment?
+
+MLOps Questions:
+1. What is MLOps?
+2. Why is model monitoring important?
+3. What is data drift?
+4. What is model drift?
+5. What is CI/CD?
+6. Why use Docker?
+7. How do you serve a model using FastAPI?
+8. What is logging?
+9. What is rollback?
+10. What is model versioning?
+
+Generative AI Questions:
+1. What is Generative AI?
+2. What is an LLM?
+3. What is tokenization?
+4. What are embeddings?
+5. What is semantic similarity?
+6. What is vector search?
+7. What is RAG?
+8. Why does RAG reduce hallucination?
+9. What is prompt engineering?
+10. What are AI agents?
+
+Answering Strategy:
+Use the STAR method for behavioral questions:
+Situation, Task, Action, Result.
+
+For technical questions:
+1. Define the concept.
+2. Explain intuition.
+3. Give example.
+4. Mention project use case.
+
+For project explanation:
+1. Problem statement
+2. Dataset
+3. Preprocessing
+4. Model/approach
+5. Evaluation
+6. Deployment
+7. Monitoring
+8. Future improvement

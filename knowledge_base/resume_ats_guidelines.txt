@@ -1,0 +1,76 @@
+Resume and ATS Guidelines
+
+Purpose:
+This document helps students create ATS-friendly resumes and improve job match scores.
+
+Resume Sections:
+1. Contact Information
+2. Professional Summary
+3. Education
+4. Technical Skills
+5. Projects
+6. Experience or Internship
+7. Certifications
+8. Achievements
+9. Links
+
+Contact Information:
+Include full name, phone number, email, LinkedIn, GitHub, portfolio link, and location. Avoid unnecessary personal details.
+
+Professional Summary:
+Write 2-3 lines based on target role. Example:
+BCA AI/ML student with hands-on experience in Python, machine learning, SQL, FastAPI, and model deployment. Built end-to-end projects including churn prediction, fake news detection, and AI-based web applications.
+
+Technical Skills:
+Group skills clearly:
+Languages: Python, C++, Java, SQL
+Libraries: Pandas, NumPy, Scikit-learn, TensorFlow
+Tools: Git, GitHub, Docker, FastAPI
+Databases: MySQL, SQLite, MongoDB
+AI/ML: Machine Learning, NLP, RAG, Computer Vision
+
+Project Section:
+Each project should include:
+1. Project title
+2. Problem solved
+3. Tools used
+4. Model/algorithm used
+5. Result or metric
+6. Deployment link if available
+7. GitHub link
+
+Good Project Bullet:
+Built a Customer Churn Prediction web app using XGBoost, Flask, and SHAP explainability, achieving 93% accuracy and providing real-time churn predictions with feature-level explanations.
+
+Weak Project Bullet:
+Made churn prediction project.
+
+ATS Tips:
+1. Use simple formatting.
+2. Avoid tables and heavy graphics.
+3. Use job description keywords.
+4. Keep project descriptions clear.
+5. Mention measurable results.
+6. Add GitHub links.
+7. Use consistent tense.
+8. Avoid spelling mistakes.
+9. Keep resume one page for fresher.
+10. Customize resume for each role.
+
+Common ATS Keywords for Data Science:
+Python, SQL, Machine Learning, Statistics, Pandas, NumPy, Scikit-learn, EDA, Feature Engineering, Model Evaluation, Classification, Regression, Data Visualization, Power BI, Tableau, FastAPI, Docker, Git, GitHub.
+
+Common ATS Keywords for Software Engineering:
+Java, C++, Python, DSA, OOP, DBMS, Operating Systems, Computer Networks, REST API, Backend, Frontend, React, Node.js, SQL, Git, GitHub.
+
+Common Mistakes:
+1. No GitHub link
+2. No metrics
+3. Too many generic words
+4. Poor project explanation
+5. Missing role-specific keywords
+6. Incorrect grammar
+7. Too long resume
+8. No deployment link
+9. Not matching job description
+10. Using copied templates without customization

@@ -1,0 +1,21 @@
+Data Storytelling & Visualization
+
+Why It Matters:
+Insights are useless if they can't be communicated. Storytelling turns data into decisions.
+
+Key Tools:
+- Tableau / Power BI (dashboards)
+- Python: Matplotlib, Seaborn, Plotly
+- Excel (pivot charts still widely used)
+
+Story Structure:
+1. Context – business problem
+2. Analysis – what you found
+3. Conclusion – actionable recommendation
+4. Visual – clean chart supporting the story
+
+Best Practices:
+- Avoid chart junk
+- Use color purposefully
+- Label axes and provide titles
+- Know your audience

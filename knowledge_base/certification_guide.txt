@@ -1,0 +1,21 @@
+Recommended Certifications for Data Careers
+
+Data Scientist:
+- AWS Certified Machine Learning – Specialty
+- Google Professional Data Engineer
+- Microsoft Azure Data Scientist Associate
+
+Data Analyst:
+- Google Data Analytics Professional Certificate
+- Microsoft Power BI Data Analyst Associate
+
+General:
+- Databricks Certified Associate Developer for Apache Spark
+- TensorFlow Developer Certificate
+
+Why Certifications:
+- Validate skills for recruiters
+- Structured learning paths
+- Some companies require them for specific roles
+
+Tip: Focus on one cloud provider’s cert + one tool-specific cert.

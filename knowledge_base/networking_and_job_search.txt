@@ -1,0 +1,22 @@
+Networking & Job Search Strategies
+
+Online Presence:
+- LinkedIn: complete profile, relevant skills, posts about projects
+- GitHub: active, well-documented repositories
+- Kaggle: competition rankings and notebooks
+
+Networking:
+- Attend local meetups (AI/ML, Python)
+- Join online communities (Reddit r/datascience, Discord groups)
+- Reach out for informational interviews
+
+Job Boards:
+- LinkedIn Jobs, Indeed, Wellfound (startups)
+- Company career pages directly
+
+Application Tips:
+- Tailor resume to each job description
+- Write a short cover letter highlighting specific projects
+- Follow up after applying (if possible)
+
+Hidden job market: many roles are filled via referrals.

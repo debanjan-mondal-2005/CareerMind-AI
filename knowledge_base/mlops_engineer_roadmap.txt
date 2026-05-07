@@ -1,0 +1,72 @@
+MLOps Engineer Career Roadmap
+
+Purpose:
+This document guides students who want to understand MLOps and production machine learning systems.
+
+Role Overview:
+An MLOps Engineer helps machine learning models move from notebooks into production. The role focuses on deployment, automation, monitoring, logging, CI/CD, model versioning, drift detection, and system reliability.
+
+Core Skills:
+1. Python
+2. Machine learning basics
+3. FastAPI
+4. Docker
+5. Git and GitHub
+6. Linux basics
+7. Cloud basics
+8. CI/CD
+9. Model monitoring
+10. Logging
+11. Data drift detection
+12. Model drift detection
+
+ML Lifecycle:
+1. Data collection
+2. Data validation
+3. Data preprocessing
+4. Model training
+5. Model evaluation
+6. Model packaging
+7. Model deployment
+8. Monitoring
+9. Retraining
+10. Version control
+
+Deployment Skills:
+Students should learn how to save models using joblib, pickle, or framework-specific formats. They should create APIs using FastAPI or Flask and test endpoints with JSON input.
+
+Docker Skills:
+Learn Dockerfile, images, containers, ports, environment variables, requirements.txt, docker build, docker run, and container logs.
+
+CI/CD:
+Learn GitHub Actions basics. A simple ML CI/CD pipeline can run tests, check code, build Docker image, and deploy the app.
+
+Monitoring:
+Monitor response time, error rate, prediction distribution, model confidence, input feature distribution, and user feedback.
+
+Data Drift:
+Data drift happens when input data changes over time. Example: earlier student profiles mention Python and ML, but newer profiles mention GenAI, RAG, LangChain, and MLOps. The system should detect such changes.
+
+Model Drift:
+Model drift happens when model quality decreases over time. Example: a career recommendation model gives outdated advice because job market requirements changed.
+
+Projects:
+1. ML model deployment with FastAPI and Docker
+2. Model monitoring dashboard
+3. Data drift detection system
+4. Customer churn prediction with monitoring
+5. RAG chatbot with logging
+6. CI/CD pipeline for ML API
+7. Model retraining workflow
+
+Interview Questions:
+1. What is MLOps?
+2. What is the ML lifecycle?
+3. What is Docker?
+4. Why do we need CI/CD?
+5. What is data drift?
+6. What is model drift?
+7. How do you monitor a deployed model?
+8. How do you rollback a model?
+9. What is model versioning?
+10. How do you deploy an ML model using FastAPI?

@@ -1,0 +1,113 @@
+Data Scientist Career Roadmap
+
+Purpose:
+This document explains the learning path, skills, projects, interview areas, and deployment expectations for a student who wants to become a Data Scientist.
+
+Role Overview:
+A Data Scientist uses data to solve business problems. The role includes collecting data, cleaning data, analyzing patterns, building machine learning models, evaluating model performance, explaining results, and sometimes deploying models into production systems. A good data scientist must understand both technical and business context.
+
+Core Skills:
+1. Python programming
+2. SQL and database querying
+3. Statistics and probability
+4. Data cleaning and preprocessing
+5. Exploratory Data Analysis
+6. Data visualization
+7. Machine learning algorithms
+8. Feature engineering
+9. Model evaluation
+10. Deployment basics
+11. Git and GitHub
+12. Communication and storytelling with data
+
+Python Topics:
+Students should learn variables, data types, conditions, loops, functions, lists, tuples, dictionaries, sets, file handling, exception handling, OOP basics, modules, virtual environments, and package management. For data science, Python libraries such as NumPy, Pandas, Matplotlib, Scikit-learn, and Joblib are important.
+
+SQL Topics:
+A data scientist should understand SELECT, WHERE, GROUP BY, HAVING, ORDER BY, JOINs, subqueries, aggregate functions, window functions, CTEs, indexing basics, and database design basics. SQL is often tested in interviews because companies store business data in databases.
+
+Statistics Topics:
+Important concepts include mean, median, mode, variance, standard deviation, correlation, covariance, probability distributions, normal distribution, sampling, hypothesis testing, p-value, confidence interval, outliers, skewness, and bias-variance tradeoff.
+
+Machine Learning Topics:
+Important algorithms include linear regression, logistic regression, decision tree, random forest, gradient boosting, XGBoost, KNN, SVM, naive Bayes, K-means clustering, PCA, and basic neural networks. Students should understand when to use classification, regression, clustering, and recommendation methods.
+
+Model Evaluation:
+For classification, learn accuracy, precision, recall, F1-score, ROC-AUC, confusion matrix, false positives, and false negatives. For regression, learn MAE, MSE, RMSE, R2 score, adjusted R2, and residual analysis.
+
+Projects:
+1. Customer Churn Prediction with SHAP explainability
+2. Fake News Detection with FastAPI deployment
+3. Sales Forecasting with time-series analysis
+4. Loan Default Risk Prediction
+5. Student Performance Prediction
+6. Healthcare Disease Prediction
+7. Resume ATS Score Checker
+8. RAG-based Study Assistant
+9. E-commerce Review Sentiment Analysis
+10. Fraud Transaction Detection
+
+Beginner Roadmap:
+Month 1:
+Learn Python basics, Pandas, NumPy, and data cleaning. Practice small datasets and understand missing values, duplicate values, data types, and basic visualization.
+
+Month 2:
+Learn SQL, statistics, probability, and EDA. Practice business questions such as sales by region, monthly revenue, customer segmentation, and product performance.
+
+Month 3:
+Learn machine learning algorithms and evaluation metrics. Build classification and regression models using Scikit-learn.
+
+Month 4:
+Build two complete projects with GitHub documentation, README, screenshots, model performance, and deployment.
+
+Month 5:
+Learn FastAPI, Docker basics, model serving, logging, and monitoring. Deploy one model as an API.
+
+Month 6:
+Prepare resume, LinkedIn, GitHub portfolio, SQL interview questions, ML interview questions, and project explanation.
+
+Interview Questions:
+1. What is overfitting and how do you reduce it?
+2. What is the difference between precision and recall?
+3. What is cross-validation?
+4. Explain train-test split.
+5. What is feature engineering?
+6. What is the difference between classification and regression?
+7. What is a confusion matrix?
+8. How do you handle missing values?
+9. What is data leakage?
+10. How do you deploy a machine learning model?
+
+Industry Expectations:
+Companies expect candidates to understand the full ML lifecycle: data collection, preprocessing, EDA, model training, evaluation, deployment, monitoring, and improvement. A student with only notebook projects may be weaker than a student who has deployed models using APIs and documented the complete workflow.
+
+MLOps Connection:
+A production data science project should include:
+1. Git version control
+2. Data versioning
+3. Model versioning
+4. Experiment tracking
+5. API deployment
+6. Monitoring
+7. Logging
+8. Data drift detection
+9. Model drift detection
+10. CI/CD pipeline
+
+Common Mistakes:
+1. Only focusing on accuracy
+2. Not explaining why the model was selected
+3. Not doing EDA properly
+4. Not checking class imbalance
+5. Not documenting projects on GitHub
+6. Not deploying models
+7. Not understanding business impact
+8. Not preparing SQL
+9. Not explaining model limitations
+10. Not monitoring model after deployment
+
+Recommended Final Output for Students:
+A strong student should have at least 3 polished projects:
+1. One classification project
+2. One regression or forecasting project
+3. One deployed end-to-end AI/ML project with monitoring

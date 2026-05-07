@@ -1,0 +1,20 @@
+Advanced Python Skills for Data Science
+
+Efficient Data Manipulation:
+- pandas: groupby, merge, pivot, apply (vectorized)
+- NumPy: broadcasting, advanced indexing
+
+Code Quality:
+- Write modular code (functions, classes)
+- Use virtual environments
+- Unit testing with pytest for data pipelines
+
+Performance:
+- Use vectorization over loops
+- Profile code with cProfile/line_profiler
+- Use Dask for out-of-core computation
+
+Beyond Basics:
+- Decorators, generators, context managers
+- Type hints (improve readability)
+- Writing command-line tools with argparse

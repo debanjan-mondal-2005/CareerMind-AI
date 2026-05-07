@@ -1,0 +1,17 @@
+Statistics & ML Fundamentals Refresher
+
+Statistics Essentials:
+- Descriptive statistics (mean, median, variance)
+- Probability distributions (Normal, Binomial, Poisson)
+- Hypothesis testing (p-value, t-test, chi-square)
+- Confidence intervals
+- Bayesian thinking (prior, likelihood, posterior)
+
+Machine Learning Basics:
+- Supervised vs Unsupervised
+- Bias-Variance tradeoff
+- Overfitting and regularization
+- Cross-validation and evaluation metrics (precision, recall, F1, ROC-AUC)
+
+Why Refresh:
+Many interviews test these fundamentals. Strong theoretical understanding helps in model selection and debugging.

@@ -1,0 +1,18 @@
+Building a Portfolio That Gets Noticed
+
+GitHub Must-Haves:
+- Clean README for every project (description, tech stack, results)
+- Jupyter notebooks with explanations
+- Well-structured code (folders, requirements.txt)
+- A personal website (optional but impressive)
+
+Project Ideas:
+- End-to-end ML project (data collection -> deployment)
+- Dashboard with real-time data (Streamlit/Dash)
+- Kaggle competition write-ups
+- Open-source contributions
+
+What Recruiters Look For:
+- Consistency and recent activity
+- Projects related to job requirements
+- Clear documentation and visualizations

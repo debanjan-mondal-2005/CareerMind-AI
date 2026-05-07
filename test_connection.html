@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>Testing API Connections</h1>
+    <p>Open browser console (F12) to see results</p>
+    
+    <script>
+        console.log("Testing API connection...");
+        
+        // Test 1: Try connecting to localhost:5000
+        fetch("http://localhost:5000/health")
+            .then(r => r.json())
+            .then(d => console.log("✓ localhost:5000 works:", d))
+            .catch(e => console.error("✗ localhost:5000 failed:", e.message));
+        
+        // Test 2: Try connecting to 127.0.0.1:5000
+        fetch("http://127.0.0.1:5000/health")
+            .then(r => r.json())
+            .then(d => console.log("✓ 127.0.0.1:5000 works:", d))
+            .catch(e => console.error("✗ 127.0.0.1:5000 failed:", e.message));
+    </script>
+</body>
+</html>

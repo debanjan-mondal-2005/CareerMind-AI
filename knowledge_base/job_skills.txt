@@ -1,0 +1,64 @@
+Job Skill Requirements by Role
+
+Data Scientist:
+Required skills include Python, SQL, statistics, probability, data cleaning, EDA, data visualization, machine learning, feature engineering, model evaluation, Scikit-learn, Pandas, NumPy, Git, GitHub, FastAPI basics, Docker basics, and communication.
+
+AI/ML Engineer:
+Required skills include Python, machine learning, deep learning, NLP, computer vision, TensorFlow or PyTorch, model deployment, FastAPI, Docker, Git, cloud basics, model monitoring, RAG, embeddings, vector databases, and MLOps.
+
+Software Engineer:
+Required skills include one programming language, DSA, OOP, DBMS, OS basics, computer networks, Git, GitHub, backend development, APIs, testing, debugging, and system design basics.
+
+Data Analyst:
+Required skills include Excel, SQL, Python basics, statistics basics, Power BI or Tableau, dashboard design, data cleaning, reporting, and communication.
+
+Full Stack Developer:
+Required skills include HTML, CSS, JavaScript, React, backend framework, API development, database, authentication, Git, deployment, and responsive design.
+
+Cloud Engineer:
+Required skills include Linux, networking, cloud services, Docker, Kubernetes basics, CI/CD, monitoring, security basics, and infrastructure concepts.
+
+Cybersecurity Analyst:
+Required skills include networking, Linux basics, security fundamentals, logs, SIEM basics, threat detection, vulnerability basics, incident response, and scripting.
+
+Business Analyst:
+Required skills include requirement gathering, documentation, Excel, SQL basics, communication, process mapping, stakeholder management, and reporting.
+
+Skill Priority for Data Science Students:
+High priority:
+Python, SQL, statistics, ML, EDA, projects, GitHub, deployment.
+
+Medium priority:
+Power BI, Docker, FastAPI, cloud, NLP, deep learning.
+
+Advanced priority:
+MLOps, RAG, vector databases, CI/CD, model monitoring, agents, fine-tuning.
+
+Skill Priority for Software Engineering Students:
+High priority:
+Programming, DSA, OOP, DBMS, OS, Git, projects.
+
+Medium priority:
+Backend APIs, frontend basics, testing, deployment.
+
+Advanced priority:
+System design, cloud, Docker, microservices, CI/CD.
+
+Common Missing Skills in Students:
+1. SQL practice
+2. Statistics understanding
+3. Project deployment
+4. GitHub documentation
+5. Communication
+6. Resume writing
+7. DSA problem solving
+8. Model evaluation
+9. FastAPI/Docker
+10. Interview preparation
+
+How to Choose a Role:
+If a student likes data, graphs, models, and analysis, Data Scientist or Data Analyst may fit.
+If a student likes coding, algorithms, and building apps, Software Engineer may fit.
+If a student likes ML models, APIs, deployment, and AI systems, AI/ML Engineer may fit.
+If a student likes dashboards and business insights, Data Analyst may fit.
+If a student likes infrastructure and automation, MLOps or Cloud Engineer may fit.

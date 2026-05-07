@@ -1,0 +1,157 @@
+Data Scientist Required Skills
+
+A Data Scientist should know Python, SQL, statistics, probability, data cleaning, exploratory data analysis, data visualization, machine learning, feature engineering, model evaluation, Pandas, NumPy, Scikit-learn, Git, GitHub, FastAPI, Docker, and basic MLOps.
+
+A Data Scientist works with data to solve business problems. The role includes collecting data, cleaning data, analyzing patterns, building machine learning models, evaluating results, explaining insights, and sometimes deploying models into production.
+
+Core Technical Skills:
+1. Python programming
+2. SQL database querying
+3. Statistics and probability
+4. Data cleaning
+5. Exploratory Data Analysis
+6. Data visualization
+7. Machine learning
+8. Feature engineering
+9. Model evaluation
+10. Model deployment basics
+11. Git and GitHub
+12. Communication and storytelling
+
+Python Skills:
+A Data Scientist should know Python basics such as variables, data types, loops, conditions, functions, lists, tuples, dictionaries, sets, file handling, exception handling, and basic object-oriented programming.
+
+Python Libraries:
+Important Python libraries for data science are Pandas, NumPy, Matplotlib, Seaborn, Scikit-learn, Joblib, XGBoost, TensorFlow, Keras, and Streamlit or FastAPI for deployment.
+
+Pandas Skills:
+A Data Scientist should know how to read CSV files, handle missing values, remove duplicates, filter rows, group data, merge datasets, sort values, create new columns, handle categorical data, and perform data aggregation.
+
+NumPy Skills:
+A Data Scientist should understand arrays, indexing, slicing, mathematical operations, broadcasting, random number generation, and basic numerical computation.
+
+SQL Skills:
+A Data Scientist should know SELECT, WHERE, GROUP BY, HAVING, ORDER BY, INNER JOIN, LEFT JOIN, RIGHT JOIN, subqueries, aggregate functions, window functions, CTEs, and basic database concepts.
+
+Statistics Skills:
+Important statistics topics include mean, median, mode, variance, standard deviation, correlation, covariance, skewness, outliers, probability, sampling, distributions, hypothesis testing, p-value, confidence interval, and statistical significance.
+
+Probability Skills:
+A Data Scientist should understand probability basics, conditional probability, Bayes theorem, independent and dependent events, normal distribution, binomial distribution, and probability density concepts.
+
+EDA Skills:
+Exploratory Data Analysis includes understanding dataset shape, column types, missing values, duplicates, outliers, distributions, correlations, trends, category counts, and relationships between features and target variable.
+
+Data Visualization Skills:
+A Data Scientist should know how to create bar charts, line charts, scatter plots, histograms, box plots, heatmaps, pie charts, count plots, and dashboards. The goal is to explain data patterns clearly.
+
+Machine Learning Skills:
+A Data Scientist should know supervised learning, unsupervised learning, classification, regression, clustering, model training, model testing, model validation, and model selection.
+
+Important ML Algorithms:
+1. Linear Regression
+2. Logistic Regression
+3. Decision Tree
+4. Random Forest
+5. K-Nearest Neighbors
+6. Support Vector Machine
+7. Naive Bayes
+8. K-Means Clustering
+9. Gradient Boosting
+10. XGBoost
+11. LightGBM
+12. Principal Component Analysis
+
+Feature Engineering Skills:
+Feature engineering includes handling missing values, encoding categorical variables, scaling numerical data, creating new features, transforming skewed data, handling outliers, selecting important features, and reducing dimensionality.
+
+Model Evaluation Skills:
+For classification, a Data Scientist should understand accuracy, precision, recall, F1-score, confusion matrix, ROC-AUC, false positive, false negative, true positive, and true negative.
+
+For regression, a Data Scientist should understand MAE, MSE, RMSE, R2 score, adjusted R2, residuals, and error analysis.
+
+Model Deployment Skills:
+A Data Scientist should know how to save a trained model using Joblib or Pickle, create prediction APIs using FastAPI or Flask, test API endpoints, create simple frontend forms, and deploy the project.
+
+MLOps Skills:
+Basic MLOps skills include Git, GitHub, Docker, requirements.txt, virtual environment, logging, monitoring, model versioning, data drift detection, model drift detection, and CI/CD basics.
+
+Generative AI Skills for Modern Data Scientists:
+Modern Data Scientists should also understand embeddings, vector search, semantic similarity, RAG, prompt engineering, LLM APIs, document chunking, and AI agents.
+
+Business Skills:
+A Data Scientist should understand the business problem before building a model. The model should solve a real problem, not just give high accuracy.
+
+Communication Skills:
+A Data Scientist should explain technical results in simple language. They should explain why a model was used, what the result means, what the limitations are, and what action should be taken.
+
+Beginner Skills:
+For beginners, the most important skills are Python, SQL, statistics, Pandas, NumPy, data cleaning, data visualization, and basic machine learning.
+
+Intermediate Skills:
+For intermediate level, students should focus on EDA, feature engineering, machine learning algorithms, model evaluation, cross-validation, hyperparameter tuning, GitHub projects, and deployment.
+
+Advanced Skills:
+For advanced level, students should learn deep learning, NLP, RAG, MLOps, Docker, cloud deployment, CI/CD, model monitoring, data drift, model drift, and explainable AI.
+
+Skills for Data Scientist Internship:
+For internships, students should focus on Python, SQL, statistics, EDA, machine learning algorithms, model evaluation, Pandas, NumPy, Scikit-learn, GitHub projects, and deployment basics.
+
+Skills for Entry-Level Data Scientist:
+For entry-level roles, students should know Python, SQL, statistics, machine learning, data visualization, feature engineering, model evaluation, project deployment, and communication.
+
+Skills for Data Science Projects:
+A good Data Science project should include problem statement, dataset explanation, EDA, preprocessing, feature engineering, model training, model evaluation, result interpretation, deployment, GitHub documentation, and future improvements.
+
+Important Project Skills:
+1. Data collection
+2. Data cleaning
+3. EDA
+4. Feature engineering
+5. Model selection
+6. Model training
+7. Model evaluation
+8. Model explanation
+9. API deployment
+10. Monitoring
+
+Common Missing Skills in Students:
+Many students know Python and basic machine learning, but they often miss SQL, statistics, feature engineering, model evaluation, GitHub documentation, deployment, Docker, and communication.
+
+Priority Order for Data Scientist Preparation:
+1. Python basics
+2. SQL
+3. Statistics and probability
+4. Pandas and NumPy
+5. Data visualization
+6. Machine learning
+7. Feature engineering
+8. Model evaluation
+9. Projects
+10. Deployment
+11. GitHub and resume
+12. Interview preparation
+
+Recommended Projects:
+1. Customer Churn Prediction
+2. Fake News Detection
+3. Sales Forecasting
+4. Loan Default Prediction
+5. Student Performance Prediction
+6. Healthcare Disease Prediction
+7. Resume ATS Analyzer
+8. RAG-Based Study Assistant
+9. E-commerce Review Sentiment Analysis
+10. Fraud Detection System
+
+Interview Preparation Topics:
+A Data Scientist should prepare Python, SQL, statistics, probability, machine learning algorithms, model evaluation, EDA, feature engineering, project explanation, deployment, and business interpretation.
+
+Strong Data Scientist Profile:
+A strong beginner Data Scientist profile should include Python, SQL, statistics, machine learning, two or three complete projects, GitHub documentation, one deployed project, and clear project explanation.
+
+Weak Data Scientist Profile:
+A weak profile usually has only certificates, no deployed projects, no GitHub documentation, poor SQL knowledge, weak statistics, and no understanding of model evaluation.
+
+How to Improve:
+Students should build end-to-end projects, write proper README files, deploy at least one project, practice SQL daily, revise statistics, and explain projects in simple language.

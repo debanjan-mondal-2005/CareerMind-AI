@@ -1,0 +1,24 @@
+MLOps & Deployment Essentials (Extended)
+
+Continuous Integration / Continuous Deployment (CI/CD):
+- GitHub Actions, GitLab CI
+- Automated testing for data and model
+
+Model Serving:
+- REST APIs (FastAPI, Flask)
+- gRPC for high-performance
+- TorchServe, TensorFlow Serving
+
+Monitoring:
+- Data drift detection (use Evidently, Alibi Detect)
+- Model performance tracking
+- Logging and alerting (Prometheus, Grafana)
+
+Experiment Tracking:
+- MLflow, Weights & Biases, Neptune
+
+Containerization:
+- Docker for reproducibility
+- Kubernetes for orchestration (advanced)
+
+Start with a simple FastAPI endpoint, then add monitoring and CI/CD.

@@ -1,0 +1,23 @@
+Soft Skills That Accelerate Career Growth
+
+1. Communication
+   - Explain technical concepts to non-technical stakeholders
+   - Write clear documentation and reports
+
+2. Problem-Solving
+   - Break down vague business problems into analytical tasks
+   - Use structured thinking (MECE, hypothesis-driven)
+
+3. Teamwork & Collaboration
+   - Agile/Scrum practices
+   - Code review and constructive feedback
+
+4. Time Management
+   - Prioritize learning and project tasks
+   - Use techniques like Pomodoro, timeboxing
+
+5. Adaptability
+   - Tech evolves fast; learn how to learn
+   - Be open to new tools and methods
+
+Employers often value these as much as technical skills.

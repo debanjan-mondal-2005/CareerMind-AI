@@ -1,0 +1,66 @@
+RAG and Multi-Agent Guide for CareerMind AI
+
+RAG Meaning:
+RAG stands for Retrieval-Augmented Generation. It combines information retrieval with LLM response generation. Instead of answering only from model memory, the system first retrieves relevant documents from a knowledge base and then uses the LLM to generate a grounded response.
+
+RAG Workflow:
+1. User asks a question.
+2. System converts question into embedding.
+3. Vector database searches similar document chunks.
+4. Relevant context is retrieved.
+5. LLM receives student profile, user question, and retrieved context.
+6. LLM generates personalized answer.
+
+Why RAG is useful:
+1. Reduces hallucination.
+2. Uses project-specific documents.
+3. Makes answers more relevant.
+4. Allows updating knowledge without retraining the LLM.
+5. Supports citations and source-based answers.
+
+Knowledge Base Examples:
+1. Career roadmaps
+2. Job skill documents
+3. Interview questions
+4. Resume guidelines
+5. Project ideas
+6. MLOps documents
+7. Deployment guides
+
+Agents Meaning:
+An AI agent is an intelligent module that understands input, decides what to do, calls tools if needed, and returns output.
+
+CareerMind AI Agents:
+1. Registration Agent
+2. Authentication Agent
+3. Onboarding Agent
+4. Profile Builder Agent
+5. Skill Gap Agent
+6. Roadmap Agent
+7. Job Matching Agent
+8. Project Recommendation Agent
+9. Interview Agent
+10. Diagram Agent
+11. Web Research Agent
+12. Monitoring and Drift Agent
+
+LLM-Based Agent:
+An LLM-based agent does not depend only on fixed if-else rules. It uses a language model to understand natural language, extract information, reason over context, and generate output.
+
+Example:
+Student says: I am doing BCA AI ML and want to become Data Scientist but I am weak in DSA.
+The Profile Builder Agent extracts degree, specialization, goal, and weak area.
+The Skill Gap Agent compares profile with retrieved Data Scientist roadmap.
+The Roadmap Agent generates a personalized plan.
+
+Agent Tool Examples:
+1. save_student_profile()
+2. retrieve_rag_context()
+3. search_web()
+4. generate_diagram()
+5. save_chat_history()
+6. detect_data_drift()
+7. detect_model_drift()
+
+Final System Flow:
+Student registers, logs in, answers onboarding questions, profile is created by LLM, RAG retrieves relevant career documents, career mentor agent generates roadmap and recommendations, logs are stored, monitoring agent checks drift.

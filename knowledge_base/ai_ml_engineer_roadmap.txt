@@ -1,0 +1,109 @@
+AI/ML Engineer Career Roadmap
+
+Purpose:
+This document guides students who want to become AI/ML Engineers.
+
+Role Overview:
+An AI/ML Engineer builds machine learning and deep learning systems that can be trained, evaluated, deployed, monitored, and improved. The role is more engineering-focused than a pure data science role. It includes model building, API serving, optimization, automation, and MLOps.
+
+Core Skills:
+1. Python programming
+2. Machine learning
+3. Deep learning
+4. NLP basics
+5. Computer vision basics
+6. Model deployment
+7. API development
+8. Docker
+9. Git and GitHub
+10. Cloud basics
+11. Monitoring
+12. MLOps
+
+Machine Learning Skills:
+Learn supervised learning, unsupervised learning, classification, regression, clustering, model evaluation, feature engineering, data preprocessing, cross-validation, hyperparameter tuning, and model interpretability.
+
+Deep Learning Skills:
+Learn neural networks, activation functions, loss functions, optimizers, backpropagation concept, CNN, RNN, LSTM, transformers basics, transfer learning, and model fine-tuning.
+
+NLP Skills:
+Learn tokenization, stopword removal, stemming, lemmatization, TF-IDF, word embeddings, sentence embeddings, transformers, sentiment analysis, text classification, semantic search, and RAG.
+
+Computer Vision Skills:
+Learn image preprocessing, OpenCV, CNN, object detection, YOLO basics, image classification, bounding boxes, confidence scores, and real-time video processing.
+
+Generative AI Skills:
+1. Prompt engineering
+2. Embeddings
+3. Vector search
+4. RAG
+5. LLM APIs
+6. Open-source LLMs
+7. Fine-tuning basics
+8. Agentic AI basics
+9. Multimodal AI basics
+10. Responsible AI
+
+MLOps Skills:
+1. Model packaging
+2. FastAPI deployment
+3. Docker
+4. CI/CD
+5. Logging
+6. Monitoring
+7. Data drift
+8. Model drift
+9. Model versioning
+10. Rollback strategy
+
+Projects:
+1. Sentiment Analysis with FastAPI deployment
+2. Object Detection Security System
+3. Fake News Detection with RAG explanation
+4. AI Career Mentor with Multi-Agent RAG
+5. Customer Churn Prediction with SHAP
+6. Medical Report Explainer
+7. Resume ATS Analyzer
+8. AI Study Assistant
+9. LLM Chatbot with RAG
+10. Model Drift Monitoring Dashboard
+
+Beginner Roadmap:
+Month 1:
+Learn Python, NumPy, Pandas, Matplotlib, and Scikit-learn.
+
+Month 2:
+Learn ML algorithms and evaluation metrics. Build classification and regression models.
+
+Month 3:
+Learn deep learning basics with TensorFlow or PyTorch.
+
+Month 4:
+Learn NLP, embeddings, vector search, and RAG.
+
+Month 5:
+Learn FastAPI, Docker, model serving, and deployment.
+
+Month 6:
+Build one end-to-end AI/ML project with monitoring and GitHub documentation.
+
+Interview Focus:
+1. ML algorithms
+2. Neural networks basics
+3. Overfitting and regularization
+4. Embeddings and semantic similarity
+5. RAG workflow
+6. Model deployment
+7. Docker basics
+8. Model monitoring
+9. Data drift
+10. Project explanation
+
+Common Mistakes:
+1. Only training models in notebooks.
+2. Not deploying models.
+3. Not learning APIs.
+4. Not understanding evaluation metrics.
+5. Not documenting experiments.
+6. Not monitoring model performance.
+7. Not knowing how to handle drift.

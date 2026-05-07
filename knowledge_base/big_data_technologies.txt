@@ -1,0 +1,15 @@
+Big Data Tools & Technologies
+
+Core Tools:
+- Apache Spark (PySpark)
+- Hadoop (HDFS, MapReduce – legacy but still used)
+- Apache Kafka (real-time data streaming)
+- Airflow (workflow orchestration)
+
+Why Learn:
+Large datasets cannot be processed on a single machine. Spark enables distributed processing. Kafka handles real-time data. Knowing these tools makes you job-ready for data engineering-adjacent roles.
+
+Recommended Approach:
+- Start with PySpark (DataFrames, MLlib)
+- Learn Airflow for scheduling pipelines
+- Understand the basics of streaming with Kafka

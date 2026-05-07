@@ -1,0 +1,107 @@
+Deployment, MLOps, Monitoring, and Drift Guide
+
+Purpose:
+This document explains the deployment and MLOps part of CareerMind AI.
+
+Deployment:
+Deployment means making the project available for users. A model or AI system should not remain only in a notebook. It should be accessible through a web app, API, or cloud service.
+
+CareerMind AI Deployment Architecture:
+Frontend: HTML/CSS/JavaScript or React
+Backend: FastAPI or Cloudflare Pages Functions
+Database: SQLite locally, Cloudflare D1 in cloud
+Vector Database: FAISS/ChromaDB locally, Cloudflare Vectorize in cloud
+File Storage: Local folder or Cloudflare R2
+LLM: Gemini API initially, custom/fine-tuned model later
+Hosting: Cloudflare Pages, Render, Railway, or cloud platform
+
+Pipeline:
+1. Student registration
+2. Login/authentication
+3. Onboarding conversation
+4. Profile creation
+5. RAG retrieval
+6. AI response generation
+7. Save chat history
+8. Generate roadmap/project suggestions
+9. Collect feedback
+10. Monitor drift
+
+CI/CD:
+CI/CD means Continuous Integration and Continuous Deployment. It automates testing and deployment when code is pushed to GitHub.
+
+GitHub Workflow:
+1. Create repository
+2. Push code
+3. Use branches for features
+4. Pull request review
+5. GitHub Actions run checks
+6. Deploy updated app
+
+Logging:
+Logging stores important system events:
+1. User query
+2. Agent used
+3. LLM response time
+4. Error messages
+5. Retrieved documents
+6. Feedback score
+7. Login attempts
+8. API status
+
+Monitoring:
+Monitoring checks whether the system is working properly. Important metrics:
+1. Response latency
+2. Error rate
+3. Number of users
+4. Number of queries
+5. Low-rated answers
+6. Failed LLM responses
+7. RAG retrieval quality
+8. Most common skills
+9. Most common career goals
+10. Drift indicators
+
+Data Drift:
+Data drift means input data changes over time.
+Examples:
+1. Earlier students ask about ML, later students ask about GenAI.
+2. Earlier job descriptions mention Excel and SQL, later they mention RAG and MLOps.
+3. Student profiles increasingly include new tools like LangChain and Docker.
+
+Data Drift Detection:
+1. Track keyword frequency over time.
+2. Compare old skill distribution with new skill distribution.
+3. Monitor new career goals.
+4. Monitor job description keyword changes.
+5. Generate drift report.
+
+Model Drift:
+Model drift means output quality becomes worse over time.
+Examples:
+1. AI gives outdated career advice.
+2. Roadmap does not match current job market.
+3. Interview questions become less relevant.
+4. Users give low feedback scores.
+
+Model Drift Detection:
+1. Track feedback scores.
+2. Track answer relevance ratings.
+3. Track repeated corrections.
+4. Track job match accuracy.
+5. Track failed responses.
+6. Periodically evaluate output using test questions.
+
+Rollback:
+Rollback means returning to a previous stable version if a new version fails.
+
+Responsible AI:
+Career guidance should be transparent. The AI should not guarantee jobs or salaries. It should give suggestions, explain limitations, and encourage students to verify important decisions.
+
+Security:
+1. Store password hashes, not plain passwords.
+2. Keep API keys in .env file.
+3. Do not push .env to GitHub.
+4. Validate user input.
+5. Protect student data.
+6. Restrict file uploads.

@@ -1,0 +1,738 @@
+import sys
+import os
+import json
+from typing import Optional, List
+
+# ---------- MUST be first: add backend folder to sys.path ----------
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from fastapi import UploadFile, File, Form
+from pathlib import Path
+import shutil
+import uuid
+from fastapi.staticfiles import StaticFiles
+from image_ai.hf_image_client import HFImageClient
+
+from llm.hf_client import HFClient
+from fastapi import FastAPI
+from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
+from document_ai.pdf_reader import extract_text_from_pdf
+from document_ai.pdf_qa_agent import PDFQAAgent
+
+# -----------------------------
+# App & CORS
+# -----------------------------
+app = FastAPI(
+    title="CareerMind AI API",
+    description="Multi-Agent RAG-Based Career Mentor API",
+    version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Add backend folder path (keep this as well, but the first one already did it)
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from database.db import (
+    create_tables,
+    register_student,
+    login_student,
+    get_connection,
+    save_chat_history,
+    save_onboarding_answer,
+    save_student_profile,
+    get_onboarding_answers
+)
+
+from mail.email_service import send_registration_email
+from agents.career_mentor_agent import CareerMentorAgent
+from agents.profile_builder_agent import ProfileBuilderAgent
+from agents.specialized_agents import (
+    SkillGapAgent,
+    CareerRoadmapAgent,
+    ProjectRecommendationAgent,
+    InterviewPreparationAgent
+)
+from agents.goal_web_agent import GoalAwareWebAgent
+
+# -----------------------------
+# Directory setup
+# -----------------------------
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+IMAGE_UPLOAD_DIR = PROJECT_ROOT / "backend" / "uploads" / "images"
+IMAGE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+PDF_UPLOAD_DIR = PROJECT_ROOT / "backend" / "uploads" / "pdfs"
+PDF_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# Mount static directory for generated images
+app.mount(
+    "/generated-images",
+    StaticFiles(directory=str(IMAGE_UPLOAD_DIR)),
+    name="generated-images"
+)
+
+# In-memory PDF storage per student (reset on restart)
+PDF_MEMORY = {}
+
+create_tables()
+
+# -----------------------------
+# Request Models
+# -----------------------------
+
+class ImageGenerationRequest(BaseModel):
+    student_key: str
+    password: str
+    prompt: str
+
+class RegisterRequest(BaseModel):
+    first_name: str
+    middle_name: Optional[str] = ""
+    last_name: str
+    email: str
+    password: str
+
+class LoginRequest(BaseModel):
+    student_key: str
+    password: str
+
+class CareerChatRequest(BaseModel):
+    student_key: str
+    password: str
+    question: str
+
+class AgentRequest(BaseModel):
+    student_key: str
+    password: str
+
+class OnboardingAnswerItem(BaseModel):
+    question: str
+    answer: str
+
+class OnboardingRequest(BaseModel):
+    student_key: str
+    password: str
+    answers: List[OnboardingAnswerItem]
+
+class ProfileRequest(BaseModel):
+    student_key: str
+    password: str
+    degree: str
+    semester: str
+    specialization: str
+    career_goal: str
+    skills: str
+    weak_areas: str
+    daily_study_hours: str
+
+# -----------------------------
+# Helper Functions
+# -----------------------------
+
+def get_student_profile(student_id):
+    conn = get_connection()
+    conn.row_factory = None # Ensure we get a tuple if not using row_factory
+    cursor = conn.cursor()
+    
+    # Get profile data
+    cursor.execute("SELECT * FROM student_profiles WHERE student_id = ?", (student_id,))
+    profile = cursor.fetchone()
+    
+    # Get student name data
+    cursor.execute("SELECT first_name, middle_name, last_name FROM students WHERE id = ?", (student_id,))
+    student_data = cursor.fetchone()
+    
+    conn.close()
+
+    if not profile:
+        return None
+
+    # Handle row_factory if it was set globally
+    if isinstance(profile, dict):
+        p_dict = profile
+    else:
+        # Fallback if it's a tuple (sqlite3 default)
+        columns = [column[0] for column in cursor.description]
+        p_dict = dict(zip(columns, profile))
+
+    full_name = "student"
+    if student_data:
+        if isinstance(student_data, dict):
+            fn = student_data.get("first_name", "")
+            mn = student_data.get("middle_name", "")
+            ln = student_data.get("last_name", "")
+        else:
+            fn, mn, ln = student_data
+        full_name = f"{fn} {mn} {ln}".strip()
+        full_name = " ".join(full_name.split())
+
+    return {
+        "full_name": full_name,
+        "degree": p_dict.get("degree", ""),
+        "semester": p_dict.get("semester", ""),
+        "specialization": p_dict.get("specialization", ""),
+        "career_goal": p_dict.get("career_goal", ""),
+        "skills": p_dict.get("skills", ""),
+        "weak_areas": p_dict.get("weak_areas", ""),
+        "daily_study_hours": p_dict.get("daily_study_hours", "")
+    }
+
+def authenticate_student(student_key, password):
+    login_result = login_student(student_key, password)
+    if not login_result["success"]:
+        return None, login_result
+    return login_result["student"], login_result
+
+def is_valid_ai_response(answer):
+    return "LLM error" not in answer and '"error"' not in answer
+
+def get_student_full_name(student):
+    first_name = student.get("first_name", "")
+    middle_name = student.get("middle_name", "")
+    last_name = student.get("last_name", "")
+    full_name = f"{first_name} {middle_name} {last_name}".strip()
+    full_name = " ".join(full_name.split())
+    return full_name if full_name else "student"
+
+def is_simple_chat_question(question):
+    q = question.lower().strip().replace("?", "")
+    greetings = [
+        "hi", "hello", "hey", "hii", "hello ai", "hi ai", "hey ai",
+        "good morning", "good afternoon", "good evening",
+        "how are you", "how are you?", "how r u", "how are u",
+        "are you there", "can you help me",
+        "bye", "goodbye", "good bye", "see you", "see you later", "ok bye",
+    ]
+    if q in greetings:
+        return True
+    
+    # If it's a "What is" or "Who is" or "How to", it's NOT a simple chat
+    if q.startswith(("what is", "who is", "how to", "tell me", "explain")):
+        return False
+
+    if len(q.split()) <= 2 and not is_career_related_question(q):
+        return True
+    return False
+
+def is_career_related_question(question):
+    q = question.lower()
+    career_keywords = [
+        "career", "skill", "skills", "learn", "roadmap", "project", "projects",
+        "interview", "resume", "job", "jobs", "internship", "internships",
+        "data scientist", "data science", "software engineer",
+        "ai", "ml", "machine learning", "deep learning", "rag", "llm",
+        "deployment", "docker", "fastapi", "sql", "python", "dsa",
+        "salary", "company", "companies", "hiring"
+    ]
+    return any(keyword in q for keyword in career_keywords)
+
+def needs_web_search(question):
+    q = question.lower()
+    web_keywords = [
+        "latest", "current", "today", "now", "2025", "2026",
+        "opening", "openings", "hiring", "internship", "internships",
+        "job", "jobs", "salary", "companies", "company",
+        "trend", "trends", "recent", "currently", "apply", "vacancy", "vacancies"
+    ]
+    return any(keyword in q for keyword in web_keywords)
+
+# Quick PDF / Image intent detection (sync with CareerMentorAgent)
+def is_image_generation_request(question: str) -> bool:
+    image_keywords = [
+        "generate image", "draw", "create picture", "make a diagram",
+        "visualize", "illustrate", "create an image", "generate a diagram",
+        "image of", "draw a", "paint a", "generate a picture"
+    ]
+    question_lower = question.lower()
+    return any(kw in question_lower for kw in image_keywords)
+
+def is_pdf_query_request(question: str, pdf_available: bool = False) -> bool:
+    pdf_keywords = [
+        "my pdf", "uploaded document", "the pdf", "my document",
+        "my resume", "my cv", "my file", "the document",
+        "resume", "cv"
+    ]
+    question_lower = question.lower()
+    
+    # Explicit PDF keywords
+    if any(kw in question_lower for kw in pdf_keywords):
+        return True
+    
+    # If PDF is available, check for personal info questions that could be in resume
+    if pdf_available:
+        personal_keywords = [
+            "my name", "my email", "my phone", "my contact",
+            "my experience", "my skills", "my education",
+            "my projects", "my background", "my qualification",
+            "from my", "about me", "tell me about"
+        ]
+        if any(kw in question_lower for kw in personal_keywords):
+            return True
+    
+    return False
+
+# ----------------------------------------------------------------------
+# Basic Routes
+# ----------------------------------------------------------------------
+@app.get("/")
+def root():
+    return {"message": "CareerMind AI API is running"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "service": "CareerMind AI Backend"}
+
+# ----------------------------------------------------------------------
+# Register / Login / Onboarding / Profile
+# ----------------------------------------------------------------------
+@app.post("/register")
+def register(request: RegisterRequest):
+    result = register_student(
+        request.first_name,
+        request.middle_name,
+        request.last_name,
+        request.email,
+        request.password
+    )
+    email_result = None
+    if result["success"]:
+        email_result = send_registration_email(
+            to_email=request.email,
+            first_name=request.first_name,
+            student_key=result["student_key"]
+        )
+    return {"registration": result, "email": email_result}
+
+@app.post("/login")
+def login(request: LoginRequest):
+    return login_student(request.student_key, request.password)
+
+@app.post("/onboarding")
+def save_onboarding(request: OnboardingRequest):
+    student, login_result = authenticate_student(request.student_key, request.password)
+    if not student:
+        return login_result
+    try:
+        for item in request.answers:
+            save_onboarding_answer(
+                student_id=student["id"],
+                question=item.question,
+                answer=item.answer
+            )
+        try:
+            onboarding_answers = get_onboarding_answers(student["id"])
+            if onboarding_answers:
+                answers_list = [{"question": row["question"], "answer": row["answer"]} for row in onboarding_answers]
+                profile_agent = ProfileBuilderAgent()
+                profile_result = profile_agent.build_profile(answers_list)
+                if profile_result["success"]:
+                    profile = profile_result["profile"]
+                    save_student_profile(
+                        student_id=student["id"],
+                        degree=profile.get("degree", ""),
+                        semester=profile.get("semester", ""),
+                        specialization=profile.get("specialization", ""),
+                        career_goal=profile.get("career_goal", ""),
+                        skills=json.dumps(profile.get("skills", [])) if isinstance(profile.get("skills"), list) else profile.get("skills", ""),
+                        weak_areas=json.dumps(profile.get("weak_areas", [])) if isinstance(profile.get("weak_areas"), list) else profile.get("weak_areas", ""),
+                        daily_study_hours=profile.get("daily_study_hours", "")
+                    )
+        except Exception as profile_error:
+            print(f"Profile building error: {str(profile_error)}")
+        return {"success": True, "message": "Onboarding answers saved and profile built successfully"}
+    except Exception as e:
+        return {"success": False, "message": f"Error saving onboarding answers: {str(e)}"}
+
+@app.post("/save-profile")
+def save_profile(request: ProfileRequest):
+    student, login_result = authenticate_student(request.student_key, request.password)
+    if not student:
+        return login_result
+    try:
+        save_student_profile(
+            student_id=student["id"],
+            degree=request.degree,
+            semester=request.semester,
+            specialization=request.specialization,
+            career_goal=request.career_goal,
+            skills=request.skills,
+            weak_areas=request.weak_areas,
+            daily_study_hours=request.daily_study_hours
+        )
+        return {"success": True, "message": "Student profile saved successfully"}
+    except Exception as e:
+        return {"success": False, "message": f"Error saving profile: {str(e)}"}
+
+# ----------------------------------------------------------------------
+# Career Chat (with PDF support & retrieval-first logic)
+# ----------------------------------------------------------------------
+@app.post("/career-chat")
+def career_chat(request: CareerChatRequest):
+    student, login_result = authenticate_student(request.student_key, request.password)
+    if not student:
+        return login_result
+
+    profile = get_student_profile(student["id"])
+    if not profile:
+        return {"success": False, "message": "Student profile not found. Please complete onboarding and profile builder first."}
+
+    agent = CareerMentorAgent()
+    agent.set_student_id(student["id"])
+
+    pdf_data = PDF_MEMORY.get(student["id"])
+    if pdf_data:
+        agent.set_current_pdf(pdf_data["path"])
+
+    result = agent.answer_question(profile, request.question)
+
+    if is_valid_ai_response(result.get("answer", "")):
+        try:
+            save_chat_history(
+                student_id=student["id"],
+                user_message=request.question,
+                ai_response=result.get("answer", ""),
+                sources_used=json.dumps(result.get("sources", []))
+            )
+        except Exception as e:
+            result["warning"] = f"Answer generated but chat history not saved: {str(e)}"
+
+    return {
+        "success": True,
+        **result
+    }
+
+# ----------------------------------------------------------------------
+# Smart Chat (with routing)
+# ----------------------------------------------------------------------
+@app.post("/smart-chat")
+def smart_chat(request: CareerChatRequest):
+    student, login_result = authenticate_student(request.student_key, request.password)
+    if not student:
+        return login_result
+
+    profile = get_student_profile(student["id"])
+    if not profile:
+        return {"success": False, "message": "Student profile not found."}
+
+    question = request.question.strip()
+    student_name = get_student_full_name(student)
+
+    # 1. Image detection (highest priority)
+    if is_image_generation_request(question):
+        agent = CareerMentorAgent()
+        agent.set_student_id(student["id"])
+        pdf_data = PDF_MEMORY.get(student["id"])
+        if pdf_data:
+            agent.set_current_pdf(pdf_data["path"])
+        result = agent.answer_question(profile, question)
+        return {
+            "success": True,
+            "route": "image_generation",
+            **result
+        }
+
+    # 2. Main AI Agent (CareerMentorAgent)
+    # This handles PDF Search, Knowledge Base, and Web Search (Tavily) fallback.
+    agent = CareerMentorAgent()
+    agent.set_student_id(student["id"])
+    pdf_data = PDF_MEMORY.get(student["id"])
+    if pdf_data:
+        agent.set_current_pdf(pdf_data["path"])
+    
+    result = agent.answer_question(profile, question)
+    
+    if is_valid_ai_response(result.get("answer", "")):
+        try:
+            save_chat_history(
+                student_id=student["id"],
+                user_message=question,
+                ai_response=result.get("answer", ""),
+                sources_used=json.dumps({"route": "career_mentor_agent", "sources": result.get("sources", [])})
+            )
+        except: pass
+    
+    return {
+        "success": True,
+        "route": "career_mentor_agent",
+        **result
+    }
+
+    # 3. Normal career question -> CareerMentorAgent
+    agent = CareerMentorAgent()
+    agent.set_student_id(student["id"])
+    pdf_data = PDF_MEMORY.get(student["id"])
+    if pdf_data:
+        agent.set_current_pdf(pdf_data["path"])
+    result = agent.answer_question(profile, question)
+
+    if is_valid_ai_response(result.get("answer", "")):
+        try:
+            save_chat_history(
+                student_id=student["id"],
+                user_message=question,
+                ai_response=result.get("answer", ""),
+                sources_used=json.dumps({
+                    "route": "local_rag_gemini",
+                    "sources": result.get("sources", [])
+                })
+            )
+        except Exception as e:
+            result["warning"] = f"Answer generated but chat history not saved: {str(e)}"
+
+    return {
+        "success": True,
+        "route": "local_rag_gemini",
+        **result
+    }
+
+# ----------------------------------------------------------------------
+# Specialized Multi-Agent APIs (unchanged)
+# ----------------------------------------------------------------------
+@app.post("/multi-agent/skill-gap")
+def skill_gap(request: AgentRequest):
+    student, login_result = authenticate_student(request.student_key, request.password)
+    if not student:
+        return login_result
+    profile = get_student_profile(student["id"])
+    if not profile:
+        return {"success": False, "message": "Student profile not found"}
+    agent = SkillGapAgent()
+    result = agent.analyze(profile)
+    return {"success": True, "agent": result["agent"], "answer": result["answer"], "sources": result["sources"]}
+
+@app.post("/multi-agent/roadmap")
+def roadmap(request: AgentRequest):
+    student, login_result = authenticate_student(request.student_key, request.password)
+    if not student:
+        return login_result
+    profile = get_student_profile(student["id"])
+    if not profile:
+        return {"success": False, "message": "Student profile not found"}
+    agent = CareerRoadmapAgent()
+    result = agent.generate_roadmap(profile)
+    return {"success": True, "agent": result["agent"], "answer": result["answer"], "sources": result["sources"]}
+
+@app.post("/multi-agent/projects")
+def projects(request: AgentRequest):
+    student, login_result = authenticate_student(request.student_key, request.password)
+    if not student:
+        return login_result
+    profile = get_student_profile(student["id"])
+    if not profile:
+        return {"success": False, "message": "Student profile not found"}
+    agent = ProjectRecommendationAgent()
+    result = agent.recommend_projects(profile)
+    return {"success": True, "agent": result["agent"], "answer": result["answer"], "sources": result["sources"]}
+
+@app.post("/multi-agent/interview")
+def interview(request: AgentRequest):
+    student, login_result = authenticate_student(request.student_key, request.password)
+    if not student:
+        return login_result
+    profile = get_student_profile(student["id"])
+    if not profile:
+        return {"success": False, "message": "Student profile not found"}
+    agent = InterviewPreparationAgent()
+    result = agent.prepare_interview(profile)
+    return {"success": True, "agent": result["agent"], "answer": result["answer"], "sources": result["sources"]}
+
+# ----------------------------------------------------------------------
+# Goal-Aware Web Chat (unchanged)
+# ----------------------------------------------------------------------
+@app.post("/goal-web-chat")
+def goal_web_chat(request: CareerChatRequest):
+    student, login_result = authenticate_student(request.student_key, request.password)
+    if not student:
+        return login_result
+    profile = get_student_profile(student["id"])
+    if not profile:
+        return {"success": False, "message": "Student profile not found."}
+    agent = GoalAwareWebAgent()
+    result = agent.answer_with_web_and_rag(profile, request.question)
+    if is_valid_ai_response(result["answer"]):
+        try:
+            combined_sources = {
+                "web_sources": result["web_sources"],
+                "rag_sources": result["rag_sources"],
+                "web_query": result["web_query"]
+            }
+            save_chat_history(
+                student_id=student["id"],
+                user_message=request.question,
+                ai_response=result["answer"],
+                sources_used=json.dumps(combined_sources)
+            )
+        except Exception as e:
+            return {
+                "success": True,
+                "answer": result["answer"],
+                "web_query": result["web_query"],
+                "web_sources": result["web_sources"],
+                "rag_sources": result["rag_sources"],
+                "warning": f"Answer generated but chat history not saved: {str(e)}"
+            }
+    return {
+        "success": True,
+        "answer": result["answer"],
+        "web_query": result["web_query"],
+        "web_sources": result["web_sources"],
+        "rag_sources": result["rag_sources"]
+    }
+
+# ----------------------------------------------------------------------
+# PDF Upload & Ask (with vector DB)
+# ----------------------------------------------------------------------
+@app.post("/upload-pdf")
+async def upload_pdf(
+    student_key: str = Form(...),
+    password: str = Form(...),
+    file: UploadFile = File(...)
+):
+    student, login_result = authenticate_student(student_key, password)
+    if not student:
+        return login_result
+    if not file.filename.lower().endswith(".pdf"):
+        return {"success": False, "message": "Only PDF files are allowed."}
+    safe_filename = f"{student['id']}_{uuid.uuid4().hex}_{file.filename}"
+    pdf_path = PDF_UPLOAD_DIR / safe_filename
+    try:
+        with open(pdf_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        pdf_text = extract_text_from_pdf(pdf_path)
+        if not pdf_text:
+            return {"success": False, "message": "PDF uploaded, but no readable text found."}
+
+        PDF_MEMORY[student["id"]] = {
+            "filename": file.filename,
+            "path": str(pdf_path),
+            "text": pdf_text
+        }
+
+        # Build vector DB for this PDF
+        from rag.pdf_vector_store import build_pdf_vector_db
+        try:
+            db_path, chunk_count = build_pdf_vector_db(student["id"], str(pdf_path))
+            print(f"PDF vector DB created: {db_path} with {chunk_count} chunks")
+        except Exception as e:
+            print(f"PDF vector indexing failed: {e}")
+
+        return {
+            "success": True,
+            "message": "PDF uploaded and processed successfully.",
+            "filename": file.filename,
+            "characters_extracted": len(pdf_text)
+        }
+    except Exception as e:
+        return {"success": False, "message": f"PDF upload failed: {str(e)}"}
+
+@app.post("/ask-pdf")
+def ask_pdf(
+    student_key: str = Form(...),
+    password: str = Form(...),
+    question: str = Form(...)
+):
+    student, login_result = authenticate_student(student_key, password)
+    if not student:
+        return login_result
+    pdf_data = PDF_MEMORY.get(student["id"])
+    if not pdf_data:
+        return {"success": False, "message": "No PDF found. Please upload a PDF first."}
+    agent = PDFQAAgent()
+    result = agent.answer_pdf_question(pdf_data["text"], question)
+    return {
+        "success": result["success"],
+        "answer": result["answer"],
+        "filename": pdf_data["filename"],
+        "fallback": result.get("fallback", False)
+    }
+
+# ----------------------------------------------------------------------
+# Direct Image Generation (standalone)
+# ----------------------------------------------------------------------
+@app.post("/generate-image")
+def generate_image(request: ImageGenerationRequest):
+    student, login_result = authenticate_student(request.student_key, request.password)
+    if not student:
+        return login_result
+    if not request.prompt.strip():
+        return {"success": False, "message": "Image prompt cannot be empty."}
+    agent = HFImageClient()
+    result = agent.generate_image(prompt=request.prompt, output_dir=IMAGE_UPLOAD_DIR)
+    if not result["success"]:
+        return result
+    image_url = f"http://localhost:8000/generated-images/{result['filename']}"
+    return {
+        "success": True,
+        "message": "Image generated successfully.",
+        "image_url": image_url,
+        "filename": result["filename"],
+        "model": result["model"],
+        "provider": result["provider"]
+    }
+
+# ----------------------------------------------------------------------
+# Smart Chat STREAMING (with student ID and PDF)
+# ----------------------------------------------------------------------
+from fastapi.responses import StreamingResponse
+
+@app.post("/smart-chat-stream")
+async def smart_chat_stream(request: CareerChatRequest):
+    student, login_result = authenticate_student(request.student_key, request.password)
+    if not student:
+        return login_result
+
+    profile = get_student_profile(student["id"])
+    if not profile:
+        async def error_gen():
+            yield "Student profile not found. Please complete onboarding first."
+        return StreamingResponse(error_gen(), media_type="text/plain")
+
+    question = request.question.strip()
+    student_name = get_student_full_name(student)
+
+    # Image generation
+    if is_image_generation_request(question):
+        agent = CareerMentorAgent()
+        agent.set_student_id(student["id"])
+        pdf_data = PDF_MEMORY.get(student["id"])
+        if pdf_data:
+            agent.set_current_pdf(pdf_data["path"])
+        result = agent.answer_question(profile, question)
+        async def gen():
+            yield result.get("answer", "Could not generate image.")
+        return StreamingResponse(gen(), media_type="text/plain")
+
+    # 2. Main AI Agent (CareerMentorAgent)
+    # This handles PDF Search, Knowledge Base, and Web Search (Tavily) fallback.
+    agent = CareerMentorAgent()
+    agent.set_student_id(student["id"])
+    pdf_data = PDF_MEMORY.get(student["id"])
+    if pdf_data:
+        agent.set_current_pdf(pdf_data["path"])
+    
+    async def token_generator():
+        for token in agent.stream_answer_question(profile, question):
+            yield token
+    return StreamingResponse(token_generator(), media_type="text/plain")
+
+    # Normal career question -> streaming
+    agent = CareerMentorAgent()
+    agent.set_student_id(student["id"])
+    pdf_data = PDF_MEMORY.get(student["id"])
+    if pdf_data:
+        agent.set_current_pdf(pdf_data["path"])
+
+    async def token_generator():
+        for token in agent.stream_answer_question(profile, question):
+            yield token
+
+    return StreamingResponse(token_generator(), media_type="text/plain")

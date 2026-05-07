@@ -1,0 +1,15 @@
+Cloud Computing Skills for Data Roles
+
+Must-Know Cloud Platforms:
+- AWS (S3, Lambda, SageMaker)
+- Microsoft Azure (Azure ML, Data Factory)
+- Google Cloud (Vertex AI, BigQuery)
+
+Key Concepts:
+- Storage buckets and data lakes
+- Serverless computing
+- Managed ML services (training, deployment)
+- Cost optimization
+
+Why it matters:
+Most companies run data pipelines in the cloud. Knowing cloud services helps deploy models and manage data at scale. For a data scientist, basic cloud knowledge is essential.
