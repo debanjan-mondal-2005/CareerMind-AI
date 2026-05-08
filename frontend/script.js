@@ -1,8 +1,8 @@
 // Dynamically detect the backend URL
 // REPLACE 'https://your-backend-url.onrender.com' with your actual Render URL after deployment
-const PRODUCTION_BACKEND_URL = "https://your-backend-url.onrender.com";
-const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
-    ? "http://localhost:8000" 
+const PRODUCTION_BACKEND_URL = "https://careermind-ai-backend.onrender.com";
+const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? "http://localhost:8000"
     : PRODUCTION_BACKEND_URL;
 
 // Global state
@@ -150,7 +150,7 @@ function openChatHistory(chatId) {
             msgDiv.className = "message-row ai";
             const safeAnswer = escapeHTML(msg.content);
             const sourcesHtml = renderSources(msg.sources || []);
-            
+
             // Render basic message structure
             msgDiv.innerHTML = `
                 <div class="message-bubble">
@@ -242,21 +242,21 @@ function showRegister() {
 function showLogin() {
     hideAllSections();
     document.getElementById("login-section").classList.remove("hidden");
-    
+
     // Clear login boxes to prevent accidental auto-fill
     const p1 = document.getElementById("key-part1");
     const p2 = document.getElementById("key-part2");
     const p3 = document.getElementById("key-part3");
     const pass = document.getElementById("login-password");
-    
+
     if (p1) p1.value = "";
     if (p2) p2.value = "";
     if (p3) p3.value = "";
     if (pass) pass.value = "";
-    
+
     const loginResult = document.getElementById("login-result");
     if (loginResult) loginResult.innerHTML = "";
-    
+
     if (p1) p1.focus();
 }
 
@@ -494,7 +494,7 @@ async function loginStudent() {
             localStorage.setItem("student_key", studentKey);
             localStorage.setItem("student_password", studentPassword);
             localStorage.setItem("student_first_name", studentFirstName);
-            
+
             // Reload user-specific history
             loadChatHistories();
 
@@ -585,7 +585,7 @@ function toggleSidebar() {
     if (!sidebar) return;
 
     sidebar.classList.toggle("collapsed");
-    
+
     if (expandBtn) {
         if (sidebar.classList.contains("collapsed")) {
             expandBtn.classList.remove("hidden");
@@ -775,17 +775,17 @@ function appendAIImageMessage(text, imageUrl, sources = []) {
     const outputArea = document.getElementById("output-area");
     const msg = document.createElement("div");
     msg.className = "message-row ai fade-in";
-    
+
     // Ensure the image URL points to the correct backend port
     const fullImageUrl = imageUrl.startsWith("http") ? imageUrl : `${API_BASE_URL}${imageUrl}`;
-    
+
     // Use the clean success message
-    const cleanText = text.toLowerCase().includes("generated an image") 
-        ? "Image generated successfully! Now you can download it." 
+    const cleanText = text.toLowerCase().includes("generated an image")
+        ? "Image generated successfully! Now you can download it."
         : escapeHTML(cleanAnswerText(text));
-    
+
     const sourcesHtml = renderSources(sources);
-    
+
     msg.innerHTML = `
         <div class="message-bubble">
             <div class="message-sender">CareerMind AI</div>
@@ -940,12 +940,12 @@ async function askSmartAgent() {
     currentChatMessages.push({ type: "user", content: question });
     appendUserMessage(question);
 
-        // Prepare AI message bubble (empty initially)
-        const outputArea = document.getElementById("output-area");
-        const msgDiv = document.createElement("div");
-        msgDiv.className = "message-row ai fade-in";
-        const contentId = `stream-content-${Date.now()}`;
-        msgDiv.innerHTML = `
+    // Prepare AI message bubble (empty initially)
+    const outputArea = document.getElementById("output-area");
+    const msgDiv = document.createElement("div");
+    msgDiv.className = "message-row ai fade-in";
+    const contentId = `stream-content-${Date.now()}`;
+    msgDiv.innerHTML = `
             <div class="message-bubble">
                 <div class="message-sender">CareerMind AI</div>
                 <div class="message-content" id="${contentId}">
@@ -955,18 +955,18 @@ async function askSmartAgent() {
                 </div>
             </div>
         `;
-        outputArea.appendChild(msgDiv);
-        setTimeout(() => msgDiv.classList.remove("fade-in"), 400);
-        scrollToBottom(true);
+    outputArea.appendChild(msgDiv);
+    setTimeout(() => msgDiv.classList.remove("fade-in"), 400);
+    scrollToBottom(true);
 
-        const contentEl = document.getElementById(contentId);
-        
-        // Push AI message to history early so we can update it
-        const aiMessageObj = { type: "ai", content: "", sources: [] };
-        currentChatMessages.push(aiMessageObj);
-        
-        let fullAnswer = "";
-        let isFirstToken = true;
+    const contentEl = document.getElementById(contentId);
+
+    // Push AI message to history early so we can update it
+    const aiMessageObj = { type: "ai", content: "", sources: [] };
+    currentChatMessages.push(aiMessageObj);
+
+    let fullAnswer = "";
+    let isFirstToken = true;
 
     try {
         // 🔁 CALL THE NEW STREAMING ENDPOINT
@@ -993,20 +993,20 @@ async function askSmartAgent() {
                 contentEl.innerHTML = "";
                 isFirstToken = false;
             }
-            
+
             // Check for IMAGE_URL in the accumulated answer
             if (fullAnswer.includes("IMAGE_URL:")) {
                 const parts = fullAnswer.split("IMAGE_URL:");
                 let textPart = parts[0].trim();
                 const urlPart = parts[1].trim();
-                
+
                 // Custom success message
                 if (textPart.toLowerCase().includes("generated an image")) {
                     textPart = "Image generated successfully! Now you can download it.";
                 }
-                
+
                 contentEl.innerText = textPart;
-                
+
                 // If the URL part is complete (or at least looks like a URL)
                 if (urlPart.length > 5 && !contentEl.parentElement.querySelector(".generated-image-card")) {
                     const fullImageUrl = urlPart.startsWith("http") ? urlPart : `${API_BASE_URL}${urlPart}`;
@@ -1023,13 +1023,13 @@ async function askSmartAgent() {
                         </div>
                     `;
                     contentEl.parentElement.appendChild(card);
-                    
+
                     // Update current history with the image URL (keep the relative one for storage)
                     const lastMsg = currentChatMessages[currentChatMessages.length - 1];
                     if (lastMsg && lastMsg.type === "ai") {
                         lastMsg.imageUrl = urlPart;
                         lastMsg.content = textPart;
-                        
+
                         // FORCE SAVE AND REFRESH SIDEBAR
                         saveChatHistories();
                         renderChatHistories();
@@ -1038,7 +1038,7 @@ async function askSmartAgent() {
             } else {
                 contentEl.appendChild(document.createTextNode(chunk));
             }
-            
+
             scrollToBottom(true);
         }
 
@@ -1054,14 +1054,14 @@ async function askSmartAgent() {
         } else {
             aiMessageObj.content = fullAnswer;
         }
-        
+
         saveChatHistories();
     } catch (error) {
         console.error("Streaming error:", error);
-        
+
         // Only show error if we have NO content at all
         const hasContent = contentEl && (contentEl.innerText.trim().length > 0 || contentEl.parentElement.querySelector(".generated-image-card"));
-        
+
         if (!hasContent) {
             if (contentEl) {
                 msgDiv.remove();
