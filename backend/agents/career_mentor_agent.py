@@ -1,6 +1,6 @@
 from llm.llm_client import LLMClient
-from rag.retriever import retrieve_relevant_chunks          # knowledge base
-from rag.pdf_vector_store import search_pdf_vector_db        # PDF vectors
+from rag.retriever import retrieve_relevant_chunks          
+from rag.pdf_vector_store import search_pdf_vector_db       
 from rag.chat_memory import search_chat_memory, store_chat_memory
 import os
 # pyrefly: ignore [missing-import]
@@ -9,10 +9,9 @@ from tavily import TavilyClient
 class CareerMentorAgent:
     def __init__(self):
         self.llm = LLMClient()
-        self.student_id = None      # set by main.py
+        self.student_id = None    
         self.current_pdf = None
         
-        # Initialize Tavily for web search fallback
         tavily_key = os.getenv("TAVILY_API_KEY")
         self.web_client = TavilyClient(api_key=tavily_key) if tavily_key else None
 
@@ -50,26 +49,27 @@ class CareerMentorAgent:
             for i, res in enumerate(web_results, start=1):
                 web_text += f"Source {i}: {res['title']}\nContent: {res['content']}\nURL: {res['url']}\n\n"
 
-        prompt = f"""You are CareerMind AI, a helpful career mentor.
+        prompt = f"""You are CareerMind AI, a professional and personalized Career Mentor.
         
 Student Profile:
 {formatted_profile}
 
 Information Sources:
-1. Uploaded Document: {pdf_text if pdf_text else "No relevant info found."}
-2. Internal Career Database: {rag_text if rag_text else "No relevant info found."}
-3. Web Search Results: {web_text if web_text else "No relevant info found."}
+1. Student Profile (Primary): Use this for all personal questions about the student (name, skills, goals).
+2. Uploaded Document (PDF): {pdf_text if pdf_text else "No relevant info found."}
+3. Internal Career Database: {rag_text if rag_text else "No relevant info found."}
+4. Web Search Results: {web_text if web_text else "No relevant info found."}
 
 Question: "{user_question}"
 
 Instructions:
-1. Answer the question precisely using the sources provided.
-2. Priority: PDF > Web Search > Career Database > General Knowledge.
-3. If the question is about the student personally, check the PDF first.
-4. If the question is general (like "Who is the CEO of Google?"), use the Web Search results.
-5. If none of the sources have the answer, use your general knowledge.
-6. Be direct and concise. Never say "NOT_FOUND_IN_CONTEXT". Just answer.
-7. Include source URLs at the end if you used web results.
+1. Act as a Career Mentor. Be encouraging and professional.
+2. PRIORITY: Student Profile > PDF > Internal Database > Web Search.
+3. If the question is about the student personally (e.g., "what do you know about me", "my name", "my skills"), you MUST answer using the Student Profile provided above. NEVER use web search results for personal information about the student.
+4. Only use Web Search for general career advice, company information, or market trends.
+5. If the user just says "Hello" or "Hi", reply warmly as CareerMind AI and offer career assistance.
+6. Include source URLs ONLY if you used web search results.
+7. Be direct and helpful.
 
 Answer:"""
         return prompt
@@ -158,7 +158,7 @@ Answer:"""
                 from image_ai.hf_image_client import generate_image
                 url = generate_image(user_question)
                 return {"type": "image", "url": url,
-                        "answer": f"I generated an image for: {user_question}",
+                        "answer": "Image generated successfully! Now you can download it.",
                         "sources": [], "fallback": False}
             except Exception as e:
                 return {"type": "error",
@@ -187,11 +187,19 @@ Answer:"""
 
         # 3. Web Search
         web_results = []
-        personal_terms = ["my name", "my university", "my cgpa", "my gpa", "my project", "my email", "i study"]
-        is_personal = any(term in user_question.lower() for term in personal_terms)
+        q_lower = user_question.lower()
         
-        if self.web_client:
-            if not is_personal or not pdf_chunks:
+        # Expanded personal and conversational terms
+        personal_terms = ["my name", "my university", "my cgpa", "my gpa", "my project", "my email", "i study", "about me", "know about me", "who am i"]
+        conversational_terms = ["hello", "hi", "hey", "how are you", "good morning", "good evening", "what's up"]
+        
+        is_personal = any(term in q_lower for term in personal_terms)
+        is_conversational = any(q_lower == term or q_lower.startswith(term + " ") for term in conversational_terms)
+        
+        # ONLY search web if NOT personal and NOT conversational
+        if self.web_client and not is_personal and not is_conversational:
+            # Also don't search web if it's a simple career goal check
+            if len(q_lower.split()) > 2: 
                 web_results = self._search_web(user_question)
 
         # 4. Generate Response
@@ -209,10 +217,11 @@ Answer:"""
     # Streaming variant (simplified: just uses PDF+RAG like before)
     def stream_answer_question(self, student_profile, user_question):
         if self.is_image_generation_request(user_question):
+            yield "🎨 Generating your image, please wait a moment..."
             try:
                 from image_ai.hf_image_client import generate_image
                 url = generate_image(user_question)
-                yield f"I generated an image for: {user_question}\nImage URL: {url}"
+                yield f"Image generated successfully! Now you can download it.\n\nIMAGE_URL:{url}"
             except Exception as e:
                 yield f"Failed to generate image: {str(e)}"
             return
@@ -234,14 +243,21 @@ Answer:"""
         # 2. RAG Search
         rag_chunks = retrieve_relevant_chunks(user_question, top_k=3)
 
-        # 3. Web Search (Trigger if it's a general question or local context is weak)
+        # 3. Web Search
         web_results = []
-        personal_terms = ["my name", "my university", "my cgpa", "my gpa", "my project", "my email", "i study"]
-        is_personal = any(term in user_question.lower() for term in personal_terms)
+        q_lower = user_question.lower()
         
-        if self.web_client:
-            # Always search web for non-personal questions or if PDF found nothing
-            if not is_personal or not pdf_chunks:
+        # Expanded personal and conversational terms
+        personal_terms = ["my name", "my university", "my cgpa", "my gpa", "my project", "my email", "i study", "about me", "know about me", "who am i"]
+        conversational_terms = ["hello", "hi", "hey", "how are you", "good morning", "good evening", "what's up"]
+        
+        is_personal = any(term in q_lower for term in personal_terms)
+        is_conversational = any(q_lower == term or q_lower.startswith(term + " ") for term in conversational_terms)
+        
+        # ONLY search web if NOT personal and NOT conversational
+        if self.web_client and not is_personal and not is_conversational:
+            # Also don't search web if it's a simple career goal check
+            if len(q_lower.split()) > 2: 
                 web_results = self._search_web(user_question)
 
         # 4. Unified Prompting & Streaming

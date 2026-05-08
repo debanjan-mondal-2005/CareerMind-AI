@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+# pyrefly: ignore [missing-import]
 from sentence_transformers import SentenceTransformer
 from document_ai.pdf_reader import extract_text_from_pdf
 import numpy as np

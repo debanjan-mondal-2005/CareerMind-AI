@@ -1,0 +1,30 @@
+# AI, Machine Learning, and Data Science Advanced Guide
+
+## Core Pillars of AI
+1. Mathematics: Linear Algebra, Calculus, Probability, Statistics.
+2. Programming: Python (PyTorch, TensorFlow, Scikit-learn), R.
+3. Data Handling: SQL, Pandas, NumPy, Spark.
+
+## Deep Learning & Neural Networks
+- Convolutional Neural Networks (CNNs) for Computer Vision.
+- Recurrent Neural Networks (RNNs) and LSTMs for Time Series.
+- Transformers & Attention Mechanisms: The foundation of LLMs (BERT, GPT).
+- GANs (Generative Adversarial Networks) for image synthesis.
+
+## Natural Language Processing (NLP)
+- Tokenization, Word Embeddings (Word2Vec, GloVe).
+- Fine-tuning Pre-trained Models.
+- RAG (Retrieval-Augmented Generation): Connecting LLMs to private data.
+- Vector Databases: Pinecone, Milvus, Chroma, Weaviate.
+
+## MLOps (Machine Learning Operations)
+- Versioning: DVC (Data Version Control).
+- Tracking: MLflow, Weights & Biases.
+- Deployment: FastAPI, Docker, ONNX, BentoML.
+- Monitoring: Data Drift and Model Performance tracking.
+
+## Generative AI
+- Large Language Models (LLMs).
+- Diffusion Models (Stable Diffusion, Midjourney).
+- Prompt Engineering: Chain-of-Thought, Few-shot, System Prompting.
+- AI Agents: AutoGPT, BabyAGI, LangGraph.

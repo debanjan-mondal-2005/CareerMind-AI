@@ -9,3 +9,5 @@ data/uploads/
 .DS_Store
 .idea/
 .vscode/
+backend/uploads/pdfs
+backend/uploads/images

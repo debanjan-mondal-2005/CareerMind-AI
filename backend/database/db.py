@@ -2,8 +2,11 @@ import sqlite3
 import hashlib
 import random
 from datetime import datetime
+import os
 
-DB_NAME = "careermind.db"
+# Get the absolute path to the backend directory where the db should live
+BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_NAME = os.path.join(BACKEND_DIR, "careermind.db")
 
 
 def get_connection():
@@ -171,12 +174,18 @@ def login_student(student_key, password):
     """, (student_key, password_hash))
 
     student = cursor.fetchone()
-    conn.close()
-
+    
     if student:
+        # Check if onboarding is completed
+        cursor.execute("SELECT COUNT(*) FROM onboarding_answers WHERE student_id = ?", (student["id"],))
+        onboarding_count = cursor.fetchone()[0]
+        onboarding_completed = onboarding_count > 0
+
+        conn.close()
         return {
             "success": True,
             "message": "Login successful",
+            "onboarding_completed": onboarding_completed,
             "student": {
                 "id": student["id"],
                 "student_key": student["student_key"],
@@ -187,6 +196,7 @@ def login_student(student_key, password):
             }
         }
 
+    conn.close()
     return {
         "success": False,
         "message": "Invalid student key or password"

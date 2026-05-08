@@ -1,10 +1,33 @@
-const API_BASE_URL = "http://localhost:8000";
+// Dynamically detect the backend URL (useful for mobile access via IP)
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? "http://localhost:8000" 
+    : `http://${window.location.hostname}:8000`;
 
+// Global state
 let studentKey = localStorage.getItem("student_key") || "";
 let studentPassword = localStorage.getItem("student_password") || "";
-let studentFirstName = localStorage.getItem("student_first_name") || "";
+let studentFirstName = localStorage.getItem("student_first_name") || "Student";
 let studentKeyOnboarding = "";
 let studentPasswordOnboarding = "";
+
+// Helper for downloading images (handles cross-origin issues)
+async function downloadImage(url, filename) {
+    try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename || 'careermind_image.png';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+        console.error("Download failed:", error);
+        window.open(url, '_blank');
+    }
+}
 
 const onboardingQuestions = [
     "Which degree/class are you studying?",
@@ -22,10 +45,16 @@ let currentChatId = null;
 let currentChatMessages = [];
 
 function loadChatHistories() {
+    if (!studentKey) {
+        chatHistories = [];
+        return;
+    }
     try {
-        const saved = localStorage.getItem("careermind_chat_histories");
+        const saved = localStorage.getItem(`careermind_chat_histories_${studentKey}`);
         if (saved) {
             chatHistories = JSON.parse(saved);
+        } else {
+            chatHistories = [];
         }
     } catch (e) {
         chatHistories = [];
@@ -33,7 +62,8 @@ function loadChatHistories() {
 }
 
 function saveChatHistories() {
-    localStorage.setItem("careermind_chat_histories", JSON.stringify(chatHistories));
+    if (!studentKey) return;
+    localStorage.setItem(`careermind_chat_histories_${studentKey}`, JSON.stringify(chatHistories));
 }
 
 function renderHistoryList() {
@@ -118,16 +148,33 @@ function openChatHistory(chatId) {
             msgDiv.className = "message-row ai";
             const safeAnswer = escapeHTML(msg.content);
             const sourcesHtml = renderSources(msg.sources || []);
-            // If message has an image URL, add it
-            const imageHtml = msg.imageUrl ? `<div class="generated-image-wrapper"><img src="${msg.imageUrl}" alt="Generated image" class="generated-image" loading="lazy"></div>` : "";
+            
+            // Render basic message structure
             msgDiv.innerHTML = `
                 <div class="message-bubble">
                     <div class="message-sender">CareerMind AI</div>
                     <div class="message-content">${safeAnswer}</div>
-                    ${imageHtml}
                     ${sourcesHtml}
                 </div>
             `;
+
+            // If message has an image URL, add it
+            if (msg.imageUrl) {
+                const fullImageUrl = msg.imageUrl.startsWith("http") ? msg.imageUrl : `${API_BASE_URL}${msg.imageUrl}`;
+                const imageHtml = `
+                    <div class="generated-image-card">
+                        <div class="generated-image-wrapper">
+                            <img src="${fullImageUrl}" alt="Generated image" class="generated-image" loading="lazy">
+                        </div>
+                        <div class="image-actions">
+                            <button onclick="downloadImage('${fullImageUrl}', 'careermind_image_${Date.now()}.png')" class="download-btn">
+                                <i class="fa-solid fa-download"></i> Download Image
+                            </button>
+                        </div>
+                    </div>
+                `;
+                msgDiv.querySelector(".message-bubble").insertAdjacentHTML('beforeend', imageHtml);
+            }
             outputArea.appendChild(msgDiv);
         }
     });
@@ -137,14 +184,33 @@ function openChatHistory(chatId) {
 }
 
 // ---------- Auth & UI helpers ----------
+// ---------- Auth & UI helpers ----------
 window.onload = function () {
+    // Splash screen timer
+    const splash = document.getElementById("splash-screen");
+    if (splash) {
+        setTimeout(() => {
+            splash.style.opacity = "0";
+            setTimeout(() => {
+                splash.style.display = "none";
+                initAppFlow();
+            }, 800);
+        }, 2000);
+    } else {
+        initAppFlow();
+    }
+};
+
+function initAppFlow() {
     safeClearRegistrationForm();
     initChatHandlers();
     loadChatHistories();
     renderHistoryList();
-    showRegister();
     initSidebarResize();
-};
+
+    // Force start on Register page as requested
+    showRegister();
+}
 
 function initChatHandlers() {
     const textarea = document.getElementById("user-question");
@@ -174,8 +240,22 @@ function showRegister() {
 function showLogin() {
     hideAllSections();
     document.getElementById("login-section").classList.remove("hidden");
+    
+    // Clear login boxes to prevent accidental auto-fill
+    const p1 = document.getElementById("key-part1");
+    const p2 = document.getElementById("key-part2");
+    const p3 = document.getElementById("key-part3");
+    const pass = document.getElementById("login-password");
+    
+    if (p1) p1.value = "";
+    if (p2) p2.value = "";
+    if (p3) p3.value = "";
+    if (pass) pass.value = "";
+    
     const loginResult = document.getElementById("login-result");
     if (loginResult) loginResult.innerHTML = "";
+    
+    if (p1) p1.focus();
 }
 
 function showDashboard() {
@@ -226,7 +306,8 @@ function safeClearRegistrationForm() {
         "reg-middle-name",
         "reg-last-name",
         "reg-email",
-        "reg-password"
+        "reg-password",
+        "reg-confirm-password"
     ];
     fields.forEach(id => {
         const field = document.getElementById(id);
@@ -317,11 +398,16 @@ async function registerStudent() {
     const lastName = document.getElementById("reg-last-name").value.trim();
     const email = document.getElementById("reg-email").value.trim();
     const password = document.getElementById("reg-password").value;
+    const confirmPassword = document.getElementById("reg-confirm-password").value;
     const resultBox = document.getElementById("register-result");
     const button = document.querySelector("#register-section form button[type='submit']");
 
-    if (!firstName || !lastName || !email || !password) {
+    if (!firstName || !lastName || !email || !password || !confirmPassword) {
         showError(resultBox, "Please fill in all required fields.");
+        return;
+    }
+    if (password !== confirmPassword) {
+        showError(resultBox, "Passwords do not match.");
         return;
     }
     if (!isValidEmail(email)) {
@@ -365,14 +451,25 @@ async function registerStudent() {
     }
 }
 
+function handleKeyInput(current, nextId) {
+    if (current.value.length >= current.maxLength) {
+        const next = document.getElementById(nextId);
+        if (next) next.focus();
+    }
+}
+
 async function loginStudent() {
-    const key = document.getElementById("login-key").value.trim();
+    const p1 = document.getElementById("key-part1").value.trim();
+    const p2 = document.getElementById("key-part2").value.trim();
+    const p3 = document.getElementById("key-part3").value.trim();
     const password = document.getElementById("login-password").value;
     const resultBox = document.getElementById("login-result");
     const button = document.querySelector("#login-section form button[type='submit']");
 
-    if (!key || !password) {
-        showError(resultBox, "Please enter both Student Key and Password.");
+    const key = `${p1}${p2}-${p3}`.toUpperCase();
+
+    if (!p1 || !p2 || !p3 || !password) {
+        showError(resultBox, "Please enter your complete Student Key and Password.");
         return;
     }
 
@@ -395,7 +492,18 @@ async function loginStudent() {
             localStorage.setItem("student_key", studentKey);
             localStorage.setItem("student_password", studentPassword);
             localStorage.setItem("student_first_name", studentFirstName);
-            showDashboard();
+            
+            // Reload user-specific history
+            loadChatHistories();
+
+            // Enforce onboarding check
+            if (data.onboarding_completed === false) {
+                showSuccess(resultBox, "Login successful. Please complete your profile first.");
+                setTimeout(() => showOnboarding(studentKey, studentPassword), 1200);
+            } else {
+                showSuccess(resultBox, "Login successful. Redirecting...");
+                setTimeout(() => showDashboard(), 1000);
+            }
         } else {
             showError(resultBox, data.message || "Login failed. Please check your credentials.");
         }
@@ -411,10 +519,11 @@ function logout() {
     localStorage.removeItem("student_password");
     localStorage.removeItem("student_first_name");
 
+    // Full session reset
     studentKey = "";
     studentPassword = "";
     studentFirstName = "";
-
+    chatHistories = [];
     currentChatId = null;
     currentChatMessages = [];
 
@@ -447,7 +556,8 @@ function setButtonLoading(button, isLoading, text) {
 }
 
 function isValidEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    // Professional-grade email validation regex
+    return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
 }
 
 function escapeHTML(value) {
@@ -469,10 +579,18 @@ function escapeAttribute(value) {
 
 function toggleSidebar() {
     const sidebar = document.getElementById("sidebar");
-    const overlay = document.getElementById("sidebar-overlay");
-    if (!sidebar || !overlay) return;
-    sidebar.classList.toggle("open");
-    overlay.classList.toggle("show");
+    const expandBtn = document.getElementById("expand-sidebar-btn");
+    if (!sidebar) return;
+
+    sidebar.classList.toggle("collapsed");
+    
+    if (expandBtn) {
+        if (sidebar.classList.contains("collapsed")) {
+            expandBtn.classList.remove("hidden");
+        } else {
+            expandBtn.classList.add("hidden");
+        }
+    }
 }
 
 function closeSidebarOnMobile() {
@@ -481,6 +599,21 @@ function closeSidebarOnMobile() {
     const overlay = document.getElementById("sidebar-overlay");
     if (sidebar) sidebar.classList.remove("open");
     if (overlay) overlay.classList.remove("show");
+}
+
+function togglePasswordVisibility(inputId, icon) {
+    const input = document.getElementById(inputId);
+    if (!input || !icon) return;
+
+    if (input.type === "password") {
+        input.type = "text";
+        icon.classList.remove("fa-eye");
+        icon.classList.add("fa-eye-slash");
+    } else {
+        input.type = "password";
+        icon.classList.remove("fa-eye-slash");
+        icon.classList.add("fa-eye");
+    }
 }
 
 function useSuggestion(text) {
@@ -640,14 +773,31 @@ function appendAIImageMessage(text, imageUrl, sources = []) {
     const outputArea = document.getElementById("output-area");
     const msg = document.createElement("div");
     msg.className = "message-row ai fade-in";
-    const safeAnswer = escapeHTML(cleanAnswerText(text));
+    
+    // Ensure the image URL points to the correct backend port
+    const fullImageUrl = imageUrl.startsWith("http") ? imageUrl : `${API_BASE_URL}${imageUrl}`;
+    
+    // Use the clean success message
+    const cleanText = text.toLowerCase().includes("generated an image") 
+        ? "Image generated successfully! Now you can download it." 
+        : escapeHTML(cleanAnswerText(text));
+    
     const sourcesHtml = renderSources(sources);
-    const imageHtml = imageUrl ? `<div class="generated-image-wrapper"><img src="${escapeAttribute(imageUrl)}" alt="Generated image" class="generated-image" loading="lazy"></div>` : "";
+    
     msg.innerHTML = `
         <div class="message-bubble">
             <div class="message-sender">CareerMind AI</div>
-            <div class="message-content">${safeAnswer}</div>
-            ${imageHtml}
+            <div class="message-content">${cleanText}</div>
+            <div class="generated-image-card">
+                <div class="generated-image-wrapper">
+                    <img src="${fullImageUrl}" alt="Generated image" class="generated-image" loading="lazy">
+                </div>
+                <div class="image-actions">
+                    <button onclick="downloadImage('${fullImageUrl}', 'careermind_image_${Date.now()}.png')" class="download-btn">
+                        <i class="fa-solid fa-download"></i> Download Image
+                    </button>
+                </div>
+            </div>
             ${sourcesHtml}
         </div>
     `;
@@ -681,7 +831,7 @@ function initSidebarResize() {
     const handle = document.getElementById("sidebar-resize-handle");
     if (!handle) return;
 
-    handle.addEventListener("mousedown", function(e) {
+    handle.addEventListener("mousedown", function (e) {
         isResizing = true;
         startX = e.clientX;
         const sidebar = document.getElementById("sidebar");
@@ -788,28 +938,33 @@ async function askSmartAgent() {
     currentChatMessages.push({ type: "user", content: question });
     appendUserMessage(question);
 
-    // Prepare AI message bubble (empty initially)
-    const outputArea = document.getElementById("output-area");
-    const msgDiv = document.createElement("div");
-    msgDiv.className = "message-row ai fade-in";
-    const contentId = `stream-content-${Date.now()}`;
-    msgDiv.innerHTML = `
-        <div class="message-bubble">
-            <div class="message-sender">CareerMind AI</div>
-            <div class="message-content" id="${contentId}">
-                <span class="typing-dots">
-                    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-                </span>
+        // Prepare AI message bubble (empty initially)
+        const outputArea = document.getElementById("output-area");
+        const msgDiv = document.createElement("div");
+        msgDiv.className = "message-row ai fade-in";
+        const contentId = `stream-content-${Date.now()}`;
+        msgDiv.innerHTML = `
+            <div class="message-bubble">
+                <div class="message-sender">CareerMind AI</div>
+                <div class="message-content" id="${contentId}">
+                    <div class="typing-dots">
+                        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                    </div>
+                </div>
             </div>
-        </div>
-    `;
-    outputArea.appendChild(msgDiv);
-    setTimeout(() => msgDiv.classList.remove("fade-in"), 400);
-    scrollToBottom(true);
+        `;
+        outputArea.appendChild(msgDiv);
+        setTimeout(() => msgDiv.classList.remove("fade-in"), 400);
+        scrollToBottom(true);
 
-    const contentEl = document.getElementById(contentId);
-    let fullAnswer = "";
-    let isFirstToken = true;
+        const contentEl = document.getElementById(contentId);
+        
+        // Push AI message to history early so we can update it
+        const aiMessageObj = { type: "ai", content: "", sources: [] };
+        currentChatMessages.push(aiMessageObj);
+        
+        let fullAnswer = "";
+        let isFirstToken = true;
 
     try {
         // 🔁 CALL THE NEW STREAMING ENDPOINT
@@ -836,53 +991,129 @@ async function askSmartAgent() {
                 contentEl.innerHTML = "";
                 isFirstToken = false;
             }
-            contentEl.appendChild(document.createTextNode(chunk));
+            
+            // Check for IMAGE_URL in the accumulated answer
+            if (fullAnswer.includes("IMAGE_URL:")) {
+                const parts = fullAnswer.split("IMAGE_URL:");
+                let textPart = parts[0].trim();
+                const urlPart = parts[1].trim();
+                
+                // Custom success message
+                if (textPart.toLowerCase().includes("generated an image")) {
+                    textPart = "Image generated successfully! Now you can download it.";
+                }
+                
+                contentEl.innerText = textPart;
+                
+                // If the URL part is complete (or at least looks like a URL)
+                if (urlPart.length > 5 && !contentEl.parentElement.querySelector(".generated-image-card")) {
+                    const fullImageUrl = urlPart.startsWith("http") ? urlPart : `${API_BASE_URL}${urlPart}`;
+                    const card = document.createElement("div");
+                    card.className = "generated-image-card";
+                    card.innerHTML = `
+                        <div class="generated-image-wrapper">
+                            <img src="${fullImageUrl}" alt="Generated image" class="generated-image">
+                        </div>
+                        <div class="image-actions">
+                            <button onclick="downloadImage('${fullImageUrl}', 'careermind_image.png')" class="download-btn">
+                                <i class="fa-solid fa-download"></i> Download Image
+                            </button>
+                        </div>
+                    `;
+                    contentEl.parentElement.appendChild(card);
+                    
+                    // Update current history with the image URL (keep the relative one for storage)
+                    const lastMsg = currentChatMessages[currentChatMessages.length - 1];
+                    if (lastMsg && lastMsg.type === "ai") {
+                        lastMsg.imageUrl = urlPart;
+                        lastMsg.content = textPart;
+                        
+                        // FORCE SAVE AND REFRESH SIDEBAR
+                        saveChatHistories();
+                        renderChatHistories();
+                    }
+                }
+            } else {
+                contentEl.appendChild(document.createTextNode(chunk));
+            }
+            
             scrollToBottom(true);
         }
 
-        currentChatMessages.push({ type: "ai", content: fullAnswer, sources: [] });
-    } catch (error) {
-        // Streaming failed – fall back to normal endpoint
-        contentEl.innerHTML = "";
-        msgDiv.remove();
-
-        const loadingId = appendLoadingMessage();
-        try {
-            const response = await fetch(`${API_BASE_URL}/smart-chat`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    student_key: studentKey,
-                    password: studentPassword,
-                    question: question
-                })
-            });
-            const data = await response.json();
-            removeMessageById(loadingId);
-            if (!response.ok || !data.success) {
-                const errorMsg = data.message || "CareerMind AI could not generate an answer right now.";
-                currentChatMessages.push({ type: "ai", content: errorMsg, sources: [] });
-                appendAIMessage(errorMsg);
-            } else {
-                const answer = data.answer || "CareerMind AI could not generate an answer right now.";
-                const sources = extractSources(data);
-                const imageUrl = data.url || data.image_url || null;
-                currentChatMessages.push({ type: "ai", content: answer, sources: sources, imageUrl: imageUrl });
-                if (imageUrl) {
-                    appendAIImageMessage(answer, imageUrl, sources);
-                } else {
-                    appendAIMessage(answer, sources);
-                }
+        // Finalize the content in history
+        if (fullAnswer.includes("IMAGE_URL:")) {
+            const parts = fullAnswer.split("IMAGE_URL:");
+            let textPart = parts[0].trim();
+            if (textPart.toLowerCase().includes("generated an image")) {
+                textPart = "Image generated successfully! Now you can download it.";
             }
-        } catch (fallbackError) {
-            removeMessageById(loadingId);
-            const errorMsg = `Connection error: ${fallbackError.message}`;
-            currentChatMessages.push({ type: "ai", content: errorMsg, sources: [] });
-            appendAIMessage(errorMsg);
+            aiMessageObj.content = textPart;
+            aiMessageObj.imageUrl = parts[1].trim();
+        } else {
+            aiMessageObj.content = fullAnswer;
+        }
+        
+        saveChatHistories();
+    } catch (error) {
+        console.error("Streaming error:", error);
+        
+        // Only show error if we have NO content at all
+        const hasContent = contentEl && (contentEl.innerText.trim().length > 0 || contentEl.parentElement.querySelector(".generated-image-card"));
+        
+        if (!hasContent) {
+            if (contentEl) {
+                msgDiv.remove();
+                currentChatMessages.pop();
+            }
+            showError(document.getElementById("output-area"), "The connection was interrupted. Please try again.");
+        } else {
+            // We have content, so just finalize what we have instead of showing an error
+            console.log("Stream interrupted but content exists. Finalizing normally.");
+            if (fullAnswer.includes("IMAGE_URL:")) {
+                const parts = fullAnswer.split("IMAGE_URL:");
+                let textPart = parts[0].trim();
+                if (textPart.toLowerCase().includes("generated an image")) {
+                    textPart = "Image generated successfully! Now you can download it.";
+                }
+                aiMessageObj.content = textPart;
+                aiMessageObj.imageUrl = parts[1].trim();
+            } else {
+                aiMessageObj.content = fullAnswer;
+            }
+            saveChatHistories();
         }
     } finally {
         sendButton.disabled = false;
-        input.focus();
+        if (input) input.focus();
         scrollToBottom(true);
     }
+}
+
+// ---------- UI Helpers ----------
+function setButtonLoading(btn, isLoading, text) {
+    if (!btn) return;
+    btn.disabled = isLoading;
+    btn.innerHTML = isLoading ? `<i class="fa-solid fa-spinner fa-spin"></i> ${text}` : text;
+}
+
+function showError(el, msg) {
+    if (!el) return;
+    el.innerHTML = `<div class="animate-pop" style="color: var(--danger); background: rgba(239, 68, 68, 0.1); padding: 12px; border-radius: 12px; font-size: 0.9rem; margin-top: 16px; border: 1px solid rgba(239, 68, 68, 0.2);"><i class="fa-solid fa-circle-exclamation"></i> ${msg}</div>`;
+}
+
+function showSuccess(el, msg) {
+    if (!el) return;
+    el.innerHTML = `<div class="animate-pop" style="color: var(--success); background: rgba(16, 185, 129, 0.1); padding: 12px; border-radius: 12px; font-size: 0.9rem; margin-top: 16px; border: 1px solid rgba(16, 185, 129, 0.2);"><i class="fa-solid fa-circle-check"></i> ${msg}</div>`;
+}
+
+function escapeHTML(str) {
+    if (!str) return "";
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function isValidEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
 }

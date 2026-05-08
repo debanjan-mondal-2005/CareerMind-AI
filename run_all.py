@@ -26,6 +26,9 @@ def run_backend():
             cwd=backend_dir,
             check=False
         )
+    except KeyboardInterrupt:
+        # Silently exit on Ctrl+C
+        pass
     except Exception as e:
         print(f"❌ Error starting backend: {e}")
         sys.exit(1)
@@ -47,6 +50,9 @@ def run_frontend():
             [sys.executable, "-m", "http.server", "3000", "--directory", str(frontend_dir)],
             check=False
         )
+    except KeyboardInterrupt:
+        # Silently exit on Ctrl+C
+        pass
     except Exception as e:
         print(f"❌ Error starting frontend: {e}")
         sys.exit(1)
@@ -60,8 +66,6 @@ def main():
     print("\n📋 Services to start:")
     print("   • Backend (FastAPI): http://localhost:8000")
     print("   • Frontend (Static): http://localhost:3000")
-    print("\n💡 Access the application at: http://localhost:3000")
-    print("\n⚠️  Press Ctrl+C to stop all services\n")
     
     # Change to project root directory
     os.chdir(PROJECT_ROOT)

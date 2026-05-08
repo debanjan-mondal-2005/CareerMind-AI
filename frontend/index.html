@@ -1,24 +1,36 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CareerMind AI</title>
-    <link rel="stylesheet" href="style.css?v=33">
+    <link rel="stylesheet" href="style.css?v=36">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Markdown parser for rich responses -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
+
 <body>
+
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="splash-overlay">
+        <div class="splash-content">
+            <div class="splash-logo">CM</div>
+            <h1 class="splash-title">CareerMind AI</h1>
+            <p class="splash-subtitle">Your Personal Career Mentor</p>
+            <div class="splash-loader"></div>
+        </div>
+    </div>
 
     <!-- Register Section -->
     <section id="register-section" class="auth-card">
-        <div class="auth-box">
+        <div class="auth-box animate-pop">
             <div class="brand-mark">CM</div>
-            <h2>Create Your Account</h2>
-            <p class="auth-subtitle">Start your personalized AI career journey</p>
+            <h1 class="welcome-text">Welcome to CareerMind AI</h1>
+            <p class="auth-subtitle">Your personal career mentor. Create an account to begin.</p>
 
-            <form onsubmit="event.preventDefault(); registerStudent();" autocomplete="off">
+            <form onsubmit="event.preventDefault(); registerStudent();" autocomplete="off" class="stagger-form">
                 <div class="form-group">
                     <input type="text" id="reg-first-name" placeholder="First Name" required autocomplete="off">
                 </div>
@@ -31,57 +43,79 @@
                 <div class="form-group">
                     <input type="email" id="reg-email" placeholder="Email Address" required autocomplete="off">
                 </div>
-                <div class="form-group">
-                    <input type="password" id="reg-password" placeholder="Password (min 6 characters)" required autocomplete="new-password">
+                <div class="form-group password-wrapper">
+                    <input type="password" id="reg-password" placeholder="Password (min 6 characters)" required
+                        autocomplete="new-password">
+                    <i class="fa-solid fa-eye toggle-password"
+                        onclick="togglePasswordVisibility('reg-password', this)"></i>
                 </div>
-                <button type="submit" class="btn-primary">Create Account</button>
+                <div class="form-group password-wrapper">
+                    <input type="password" id="reg-confirm-password" placeholder="Confirm Password" required
+                        autocomplete="new-password">
+                    <i class="fa-solid fa-eye toggle-password"
+                        onclick="togglePasswordVisibility('reg-confirm-password', this)"></i>
+                </div>
+                <button type="submit" class="btn-primary glow-button">Create Account</button>
             </form>
 
             <div id="register-result"></div>
 
             <p class="auth-footer">
                 Already have an account?
-                <button class="link-btn" onclick="showLogin()">Sign in</button>
+                <button class="link-btn" onclick="showLogin()">Sign In</button>
             </p>
         </div>
     </section>
 
     <!-- Login Section -->
     <section id="login-section" class="auth-card hidden">
-        <div class="auth-box">
+        <div class="auth-box animate-pop">
             <div class="brand-mark">CM</div>
-            <h2>Welcome Back</h2>
-            <p class="auth-subtitle">Sign in to continue your career journey</p>
+            <h2>Sign In</h2>
+            <p class="auth-subtitle">Access your personalized career journey</p>
 
-            <form onsubmit="event.preventDefault(); loginStudent();">
-                <div class="form-group">
-                    <input type="text" id="login-key" placeholder="Student Key" required autocomplete="off">
+            <form onsubmit="event.preventDefault(); loginStudent();" class="stagger-form">
+                <div class="student-key-container">
+                    <div class="key-box-group">
+                        <input type="text" id="key-part1" class="key-box" maxlength="1" placeholder="X" required
+                            oninput="handleKeyInput(this, 'key-part2')">
+                        <input type="text" id="key-part2" class="key-box" maxlength="4" placeholder="XXXX" required
+                            oninput="handleKeyInput(this, 'key-part3')">
+                        <span class="key-sep">-</span>
+                        <input type="text" id="key-part3" class="key-box" maxlength="4" placeholder="XXXX" required
+                            oninput="handleKeyInput(this, 'login-password')">
+                    </div>
+                    <label class="input-label">Student Key (Ex: A1998-XXXX)</label>
                 </div>
-                <div class="form-group">
-                    <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password">
+
+                <div class="form-group password-wrapper">
+                    <input type="password" id="login-password" placeholder="Password" required
+                        autocomplete="current-password">
+                    <i class="fa-solid fa-eye toggle-password"
+                        onclick="togglePasswordVisibility('login-password', this)"></i>
                 </div>
-                <button type="submit" class="btn-primary">Sign In</button>
+                <button type="submit" class="btn-primary glow-button">Sign In</button>
             </form>
 
             <div id="login-result"></div>
 
             <p class="auth-footer">
                 Don't have an account?
-                <button class="link-btn" onclick="showRegister()">Create one</button>
+                <button class="link-btn" onclick="showRegister()">Create Account</button>
             </p>
         </div>
     </section>
 
     <!-- Onboarding Section -->
     <section id="onboarding-section" class="auth-card hidden">
-        <div class="auth-box auto-height">
+        <div class="auth-box auto-height animate-pop">
             <div class="brand-mark">CM</div>
             <h2>Build Your Profile</h2>
             <p class="auth-subtitle">CareerMind AI will personalize answers using this profile</p>
 
             <form id="onboarding-form" onsubmit="event.preventDefault(); submitOnboarding();">
                 <div id="onboarding-questions-container"></div>
-                <button type="submit" class="btn-primary" id="onboarding-submit">Complete Setup</button>
+                <button type="submit" class="btn-primary glow-button" id="onboarding-submit">Complete Setup</button>
             </form>
 
             <div id="onboarding-result"></div>
@@ -95,10 +129,13 @@
         <nav class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="sidebar-logo">CM</div>
-                <div>
+                <div class="sidebar-info">
                     <h2>CareerMind AI</h2>
                     <p>AI Career Mentor</p>
                 </div>
+                <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Collapse Sidebar">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
             </div>
 
             <button class="new-chat-btn" onclick="startNewChat()">
@@ -107,7 +144,7 @@
             </button>
 
             <div class="chat-history">
-                <p class="sidebar-label">Chats</p>
+                <p class="sidebar-label">Recent Chats</p>
                 <div id="history-list"></div>
             </div>
 
@@ -121,47 +158,52 @@
             <div class="sidebar-resize-handle" id="sidebar-resize-handle"></div>
         </nav>
 
+        <button class="expand-sidebar-btn hidden" id="expand-sidebar-btn" onclick="toggleSidebar()"
+            title="Show Sidebar">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+
         <!-- Main Chat Area -->
-        <main class="chat-main">
-            <header class="mobile-header">
-                <button class="menu-btn" onclick="toggleSidebar()">
-                    <i class="fa-solid fa-bars"></i>
-                </button>
-                <h2>CareerMind AI</h2>
+        <main class="chat-main" id="chat-main">
+            <header class="chat-header">
+                <div class="header-title">CareerMind AI</div>
             </header>
 
             <div class="chat-window" id="chat-window">
                 <div class="welcome-screen" id="welcome-screen">
-                    <div class="welcome-logo">CM</div>
+                    <div class="welcome-logo animate-float">CM</div>
                     <h2>CareerMind AI</h2>
                     <h3 id="welcome-message">Welcome Back!</h3>
-                    <p>Your personal AI career mentor is ready.</p>
+                    <p>Your personal AI career mentor is ready to guide you.</p>
                     <div class="suggestion-grid">
-                        <button onclick="useSuggestion('What should I learn next to become a Data Scientist?')">What should I learn next?</button>
+                        <button onclick="useSuggestion('What should I learn next to become a Data Scientist?')">What
+                            should I learn next?</button>
                         <button onclick="useSuggestion('Suggest projects for my career goal')">Suggest projects</button>
                         <button onclick="useSuggestion('Prepare me for interviews')">Interview preparation</button>
-                        <button onclick="useSuggestion('What are the latest skills required for my goal?')">Latest skills</button>
+                        <button onclick="useSuggestion('What are the latest skills required for my goal?')">Latest
+                            skills</button>
                     </div>
                 </div>
                 <div id="output-area" class="output-area"></div>
             </div>
 
             <div class="chat-input-wrapper">
-                <div class="chat-input-container">
-                    <!-- PDF upload button (hidden file input) -->
+                <div class="chat-input-container shadow-premium">
+                    <!-- PDF upload button -->
                     <input type="file" id="pdf-upload-input" accept=".pdf" style="display:none" onchange="uploadPDF()">
-                    <button class="attach-btn" onclick="document.getElementById('pdf-upload-input').click()" title="Attach PDF">
+                    <button class="attach-btn" onclick="document.getElementById('pdf-upload-input').click()"
+                        title="Attach PDF">
                         <i class="fa-solid fa-paperclip"></i>
                     </button>
 
-                    <textarea id="user-question" placeholder="Message CareerMind AI..." rows="1"></textarea>
+                    <textarea id="user-question" placeholder="Ask your career mentor anything..." rows="1"></textarea>
 
                     <button class="send-btn" onclick="askSmartAgent()" id="send-button" title="Send message">
                         <i class="fa-solid fa-arrow-up"></i>
                     </button>
                 </div>
                 <div class="disclaimer">
-                    CareerMind AI can make mistakes. Verify important career, job, and application information.
+                    CareerMind AI can make mistakes. Verify important career and job information.
                 </div>
             </div>
         </main>
@@ -169,6 +211,31 @@
         <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
     </section>
 
-    <script src="script.js?v=33"></script>
+    <script src="script.js?v=36"></script>
+
+    <!-- Live Reload Client -->
+    <script>
+        (function () {
+            const wsUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                ? "ws://localhost:8000/ws-reload"
+                : `ws://${window.location.hostname}:8000/ws-reload`;
+
+            function connect() {
+                const socket = new WebSocket(wsUrl);
+                socket.onmessage = function (event) {
+                    if (event.data === "reload") {
+                        console.log("🚀 Code changed! Reloading...");
+                        window.location.reload();
+                    }
+                };
+                socket.onclose = function () {
+                    // Try to reconnect if server drops
+                    setTimeout(connect, 2000);
+                };
+            }
+            connect();
+        })();
+    </script>
 </body>
+
 </html>

@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 # No need for dotenv or genai
+# pyrefly: ignore [missing-import]
 from sentence_transformers import SentenceTransformer
 
 # Add backend folder path (for possible imports)
@@ -98,7 +99,7 @@ def build_vector_db():
         topic = get_document_topic(source)
         chunks = chunk_text(doc["text"])
 
-        print(f"Processing {source} → {len(chunks)} chunks")
+        print(f"Processing {source} -> {len(chunks)} chunks")
 
         for idx, chunk in enumerate(chunks):
             embedding_text = build_embedding_text(source, topic, chunk)

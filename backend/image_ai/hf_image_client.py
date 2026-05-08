@@ -85,11 +85,15 @@ def generate_image(prompt: str, output_dir: str = None) -> str:
     Convenience function for CareerMentorAgent.
     Returns an image URL (string) that can be displayed directly.
     """
-    # Use environment variable or default directory
+    # Use absolute path relative to project root to avoid nested "backend/backend" folders
     if output_dir is None:
-        output_dir = os.getenv("IMAGE_OUTPUT_DIR", "backend/uploads/images")
-    # Ensure it's an absolute path for main.py to serve
-    output_dir = Path(output_dir).resolve()
+        # Get the directory of the current file (backend/image_ai)
+        current_file_dir = Path(__file__).resolve().parent
+        # Go up to the backend root
+        backend_root = current_file_dir.parent
+        output_dir = backend_root / "uploads" / "images"
+    else:
+        output_dir = Path(output_dir).resolve()
 
     try:
         client = HFImageClient()

@@ -1,22 +1,32 @@
 import sys
 import os
 import json
+import shutil
+import uuid
+import asyncio
+from pathlib import Path
 from typing import Optional, List
 
 # ---------- MUST be first: add backend folder to sys.path ----------
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi import UploadFile, File, Form
-from pathlib import Path
-import shutil
-import uuid
+# Third-party imports
+# pyrefly: ignore [missing-import]
+from fastapi import FastAPI, UploadFile, File, Form, WebSocket, WebSocketDisconnect
+# pyrefly: ignore [missing-import]
 from fastapi.staticfiles import StaticFiles
-from image_ai.hf_image_client import HFImageClient
-
-from llm.hf_client import HFClient
-from fastapi import FastAPI
-from pydantic import BaseModel
+# pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
+# pyrefly: ignore [missing-import]
+from pydantic import BaseModel
+# pyrefly: ignore [missing-import]
+from watchdog.observers import Observer
+# pyrefly: ignore [missing-import]
+from watchdog.events import FileSystemEventHandler
+
+# Local module imports
+from image_ai.hf_image_client import HFImageClient
+from llm.hf_client import HFClient
 from document_ai.pdf_reader import extract_text_from_pdf
 from document_ai.pdf_qa_agent import PDFQAAgent
 
@@ -36,9 +46,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Add backend folder path (keep this as well, but the first one already did it)
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from database.db import (
     create_tables,
@@ -83,6 +90,76 @@ app.mount(
 PDF_MEMORY = {}
 
 create_tables()
+
+# -----------------------------
+# Live Reload (WebSocket + Watchdog)
+# -----------------------------
+# (Imports moved to the top section)
+
+class LiveReloadHandler(FileSystemEventHandler):
+    def __init__(self, queue):
+        self.queue = queue
+    def on_modified(self, event):
+        if not event.is_directory:
+            # Signal a reload
+            asyncio.run_coroutine_threadsafe(self.queue.put("reload"), loop)
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            try:
+                await connection.send_text(message)
+            except:
+                pass
+
+manager = ConnectionManager()
+reload_queue = asyncio.Queue()
+loop = asyncio.get_event_loop()
+
+@app.websocket("/ws-reload")
+async def websocket_reload(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+async def broadcast_reloads():
+    while True:
+        await reload_queue.get()
+        # Debounce a bit to avoid double-reloads
+        await asyncio.sleep(0.5)
+        # Clear queue if multiple changes happened
+        while not reload_queue.empty():
+            reload_queue.get_nowait()
+        print("🔄 File change detected! Refreshing all clients...")
+        await manager.broadcast("reload")
+
+@app.on_event("startup")
+async def startup_event():
+    # Start the watchdog observer for frontend
+    frontend_path = str(PROJECT_ROOT / "frontend")
+    handler = LiveReloadHandler(reload_queue)
+    observer = Observer()
+    observer.schedule(handler, frontend_path, recursive=True)
+    observer.start()
+    app.state.observer = observer
+    # Start the broadcaster task
+    asyncio.create_task(broadcast_reloads())
+
+@app.on_event("shutdown")
+def shutdown_event():
+    if hasattr(app.state, "observer"):
+        app.state.observer.stop()
+        app.state.observer.join()
 
 # -----------------------------
 # Request Models
@@ -205,7 +282,7 @@ def get_student_full_name(student):
 def is_simple_chat_question(question):
     q = question.lower().strip().replace("?", "")
     greetings = [
-        "hi", "hello", "hey", "hii", "hello ai", "hi ai", "hey ai",
+        "hi", "hello", "hey", "hii", "hello ai", "hi ai", "hey ai", "hello mentor", "hi mentor",
         "good morning", "good afternoon", "good evening",
         "how are you", "how are you?", "how r u", "how are u",
         "are you there", "can you help me",
@@ -425,21 +502,7 @@ def smart_chat(request: CareerChatRequest):
     question = request.question.strip()
     student_name = get_student_full_name(student)
 
-    # 1. Image detection (highest priority)
-    if is_image_generation_request(question):
-        agent = CareerMentorAgent()
-        agent.set_student_id(student["id"])
-        pdf_data = PDF_MEMORY.get(student["id"])
-        if pdf_data:
-            agent.set_current_pdf(pdf_data["path"])
-        result = agent.answer_question(profile, question)
-        return {
-            "success": True,
-            "route": "image_generation",
-            **result
-        }
-
-    # 2. Main AI Agent (CareerMentorAgent)
+    # 1. Main AI Agent (CareerMentorAgent)
     # This handles PDF Search, Knowledge Base, and Web Search (Tavily) fallback.
     agent = CareerMentorAgent()
     agent.set_student_id(student["id"])
@@ -447,6 +510,14 @@ def smart_chat(request: CareerChatRequest):
     if pdf_data:
         agent.set_current_pdf(pdf_data["path"])
     
+    result = agent.answer_question(profile, question)
+    
+    if result.get("type") == "image":
+        return {
+            "success": True,
+            "route": "image_generation",
+            **result
+        }
     result = agent.answer_question(profile, question)
     
     if is_valid_ai_response(result.get("answer", "")):
@@ -682,6 +753,7 @@ def generate_image(request: ImageGenerationRequest):
 # ----------------------------------------------------------------------
 # Smart Chat STREAMING (with student ID and PDF)
 # ----------------------------------------------------------------------
+# pyrefly: ignore [missing-import]
 from fastapi.responses import StreamingResponse
 
 @app.post("/smart-chat-stream")
@@ -697,20 +769,7 @@ async def smart_chat_stream(request: CareerChatRequest):
         return StreamingResponse(error_gen(), media_type="text/plain")
 
     question = request.question.strip()
-    student_name = get_student_full_name(student)
-
-    # Image generation
-    if is_image_generation_request(question):
-        agent = CareerMentorAgent()
-        agent.set_student_id(student["id"])
-        pdf_data = PDF_MEMORY.get(student["id"])
-        if pdf_data:
-            agent.set_current_pdf(pdf_data["path"])
-        result = agent.answer_question(profile, question)
-        async def gen():
-            yield result.get("answer", "Could not generate image.")
-        return StreamingResponse(gen(), media_type="text/plain")
-
+    
     # 2. Main AI Agent (CareerMentorAgent)
     # This handles PDF Search, Knowledge Base, and Web Search (Tavily) fallback.
     agent = CareerMentorAgent()
