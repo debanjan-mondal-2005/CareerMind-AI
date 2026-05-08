@@ -1,7 +1,9 @@
-// Dynamically detect the backend URL (useful for mobile access via IP)
-const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+// Dynamically detect the backend URL
+// REPLACE 'https://your-backend-url.onrender.com' with your actual Render URL after deployment
+const PRODUCTION_BACKEND_URL = "https://your-backend-url.onrender.com";
+const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
     ? "http://localhost:8000" 
-    : `http://${window.location.hostname}:8000`;
+    : PRODUCTION_BACKEND_URL;
 
 // Global state
 let studentKey = localStorage.getItem("student_key") || "";

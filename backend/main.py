@@ -51,11 +51,11 @@ from database.db import (
     create_tables,
     register_student,
     login_student,
-    get_connection,
     save_chat_history,
     save_onboarding_answer,
     save_student_profile,
-    get_onboarding_answers
+    get_onboarding_answers,
+    get_student_profile_data
 )
 
 from mail.email_service import send_registration_email
@@ -214,53 +214,7 @@ class ProfileRequest(BaseModel):
 # Helper Functions
 # -----------------------------
 
-def get_student_profile(student_id):
-    conn = get_connection()
-    conn.row_factory = None # Ensure we get a tuple if not using row_factory
-    cursor = conn.cursor()
-    
-    # Get profile data
-    cursor.execute("SELECT * FROM student_profiles WHERE student_id = ?", (student_id,))
-    profile = cursor.fetchone()
-    
-    # Get student name data
-    cursor.execute("SELECT first_name, middle_name, last_name FROM students WHERE id = ?", (student_id,))
-    student_data = cursor.fetchone()
-    
-    conn.close()
-
-    if not profile:
-        return None
-
-    # Handle row_factory if it was set globally
-    if isinstance(profile, dict):
-        p_dict = profile
-    else:
-        # Fallback if it's a tuple (sqlite3 default)
-        columns = [column[0] for column in cursor.description]
-        p_dict = dict(zip(columns, profile))
-
-    full_name = "student"
-    if student_data:
-        if isinstance(student_data, dict):
-            fn = student_data.get("first_name", "")
-            mn = student_data.get("middle_name", "")
-            ln = student_data.get("last_name", "")
-        else:
-            fn, mn, ln = student_data
-        full_name = f"{fn} {mn} {ln}".strip()
-        full_name = " ".join(full_name.split())
-
-    return {
-        "full_name": full_name,
-        "degree": p_dict.get("degree", ""),
-        "semester": p_dict.get("semester", ""),
-        "specialization": p_dict.get("specialization", ""),
-        "career_goal": p_dict.get("career_goal", ""),
-        "skills": p_dict.get("skills", ""),
-        "weak_areas": p_dict.get("weak_areas", ""),
-        "daily_study_hours": p_dict.get("daily_study_hours", "")
-    }
+# Removed redundant get_student_profile (now in db.py)
 
 def authenticate_student(student_key, password):
     login_result = login_student(student_key, password)
@@ -457,7 +411,7 @@ def career_chat(request: CareerChatRequest):
     if not student:
         return login_result
 
-    profile = get_student_profile(student["id"])
+    profile = get_student_profile_data(student["id"])
     if not profile:
         return {"success": False, "message": "Student profile not found. Please complete onboarding and profile builder first."}
 
@@ -495,7 +449,7 @@ def smart_chat(request: CareerChatRequest):
     if not student:
         return login_result
 
-    profile = get_student_profile(student["id"])
+    profile = get_student_profile_data(student["id"])
     if not profile:
         return {"success": False, "message": "Student profile not found."}
 
@@ -572,7 +526,7 @@ def skill_gap(request: AgentRequest):
     student, login_result = authenticate_student(request.student_key, request.password)
     if not student:
         return login_result
-    profile = get_student_profile(student["id"])
+    profile = get_student_profile_data(student["id"])
     if not profile:
         return {"success": False, "message": "Student profile not found"}
     agent = SkillGapAgent()
@@ -584,7 +538,7 @@ def roadmap(request: AgentRequest):
     student, login_result = authenticate_student(request.student_key, request.password)
     if not student:
         return login_result
-    profile = get_student_profile(student["id"])
+    profile = get_student_profile_data(student["id"])
     if not profile:
         return {"success": False, "message": "Student profile not found"}
     agent = CareerRoadmapAgent()
@@ -596,7 +550,7 @@ def projects(request: AgentRequest):
     student, login_result = authenticate_student(request.student_key, request.password)
     if not student:
         return login_result
-    profile = get_student_profile(student["id"])
+    profile = get_student_profile_data(student["id"])
     if not profile:
         return {"success": False, "message": "Student profile not found"}
     agent = ProjectRecommendationAgent()
@@ -608,7 +562,7 @@ def interview(request: AgentRequest):
     student, login_result = authenticate_student(request.student_key, request.password)
     if not student:
         return login_result
-    profile = get_student_profile(student["id"])
+    profile = get_student_profile_data(student["id"])
     if not profile:
         return {"success": False, "message": "Student profile not found"}
     agent = InterviewPreparationAgent()
@@ -623,7 +577,7 @@ def goal_web_chat(request: CareerChatRequest):
     student, login_result = authenticate_student(request.student_key, request.password)
     if not student:
         return login_result
-    profile = get_student_profile(student["id"])
+    profile = get_student_profile_data(student["id"])
     if not profile:
         return {"success": False, "message": "Student profile not found."}
     agent = GoalAwareWebAgent()
@@ -762,7 +716,7 @@ async def smart_chat_stream(request: CareerChatRequest):
     if not student:
         return login_result
 
-    profile = get_student_profile(student["id"])
+    profile = get_student_profile_data(student["id"])
     if not profile:
         async def error_gen():
             yield "Student profile not found. Please complete onboarding first."

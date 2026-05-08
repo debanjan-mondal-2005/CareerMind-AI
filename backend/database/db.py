@@ -1,308 +1,247 @@
-import sqlite3
 import hashlib
 import random
-from datetime import datetime
 import os
+from datetime import datetime
+# pyrefly: ignore [missing-import]
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Text, create_mock_engine
+# pyrefly: ignore [missing-import]
+from sqlalchemy.ext.declarative import declarative_base
+# pyrefly: ignore [missing-import]
+from sqlalchemy.orm import sessionmaker
+# pyrefly: ignore [missing-import]
+from sqlalchemy.sql import text
+from dotenv import load_dotenv
 
-# Get the absolute path to the backend directory where the db should live
-BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_NAME = os.path.join(BACKEND_DIR, "careermind.db")
+load_dotenv()
 
+# --- Database Configuration ---
+# Check for Cloud Database URL (Supabase). Fallback to local SQLite.
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-def get_connection():
-    conn = sqlite3.connect(DB_NAME, timeout=20)
-    conn.row_factory = sqlite3.Row
-    return conn
+if not DATABASE_URL:
+    # Local SQLite
+    BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    DB_PATH = os.path.join(BACKEND_DIR, "careermind.db")
+    DATABASE_URL = f"sqlite:///{DB_PATH}"
+else:
+    # Fix for Render/Heroku: replace postgres:// with postgresql://
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# Initialize SQLAlchemy
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+# --- Models ---
+class Student(Base):
+    __tablename__ = "students"
+    id = Column(Integer, primary_key=True, index=True)
+    student_key = Column(String, unique=True, nullable=False)
+    first_name = Column(String, nullable=False)
+    middle_name = Column(String)
+    last_name = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    created_at = Column(String, nullable=False)
+
+class OnboardingAnswer(Base):
+    __tablename__ = "onboarding_answers"
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False)
+    created_at = Column(String, nullable=False)
+
+class StudentProfile(Base):
+    __tablename__ = "student_profiles"
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("students.id"), unique=True, nullable=False)
+    degree = Column(String)
+    semester = Column(String)
+    specialization = Column(String)
+    career_goal = Column(String)
+    skills = Column(Text)
+    weak_areas = Column(Text)
+    daily_study_hours = Column(String)
+    created_at = Column(String, nullable=False)
+
+class ChatHistory(Base):
+    __tablename__ = "chat_history"
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    user_message = Column(Text, nullable=False)
+    ai_response = Column(Text, nullable=False)
+    sources_used = Column(Text)
+    created_at = Column(String, nullable=False)
+
+# --- Database Core Functions ---
 
 def create_tables():
-    conn = get_connection()
-    cursor = conn.cursor()
+    """Create all tables in the database (Works for both SQLite and Postgres)"""
+    Base.metadata.create_all(bind=engine)
 
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS students (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_key TEXT UNIQUE NOT NULL,
-        first_name TEXT NOT NULL,
-        middle_name TEXT,
-        last_name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        created_at TEXT NOT NULL
-    )
-    """)
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS onboarding_answers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER NOT NULL,
-        question TEXT NOT NULL,
-        answer TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY(student_id) REFERENCES students(id)
-    )
-    """)
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS student_profiles (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER UNIQUE NOT NULL,
-        degree TEXT,
-        semester TEXT,
-        specialization TEXT,
-        career_goal TEXT,
-        skills TEXT,
-        weak_areas TEXT,
-        daily_study_hours TEXT,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY(student_id) REFERENCES students(id)
-    )
-    """)
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS chat_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER NOT NULL,
-        user_message TEXT NOT NULL,
-        ai_response TEXT NOT NULL,
-        sources_used TEXT,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY(student_id) REFERENCES students(id)
-    )
-    """)
-
-    conn.commit()
-    conn.close()
-
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-
 def generate_student_key(first_name):
-    """
-    Generate a unique student key in format: D2026-XXXX
-    where XXXX is a random 4-digit number (0001-9999)
-    """
     year = datetime.now().year
-    
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    # Keep generating until we get a unique key
+    db = SessionLocal()
     while True:
         random_number = random.randint(1, 9999)
         student_key = f"D{year}-{random_number:04d}"
-        
-        cursor.execute("SELECT COUNT(*) FROM students WHERE student_key = ?", (student_key,))
-        count = cursor.fetchone()[0]
-        
-        if count == 0:  # Key is unique
-            break
-    
-    conn.close()
-    return student_key
+        exists = db.query(Student).filter(Student.student_key == student_key).first()
+        if not exists:
+            db.close()
+            return student_key
 
+# --- Business Logic Functions (API Compatible) ---
 
 def register_student(first_name, middle_name, last_name, email, password):
     if not first_name or not last_name or not email or not password:
-        return {
-            "success": False,
-            "message": "First name, last name, email and password are required"
-        }
+        return {"success": False, "message": "Required fields missing"}
 
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    student_key = generate_student_key(first_name)
-    password_hash = hash_password(password)
-    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
+    db = SessionLocal()
     try:
-        cursor.execute("""
-        INSERT INTO students (
-            student_key,
-            first_name,
-            middle_name,
-            last_name,
-            email,
-            password_hash,
-            created_at
+        student_key = generate_student_key(first_name)
+        new_student = Student(
+            student_key=student_key,
+            first_name=first_name,
+            middle_name=middle_name,
+            last_name=last_name,
+            email=email,
+            password_hash=hash_password(password),
+            created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            student_key,
-            first_name,
-            middle_name,
-            last_name,
-            email,
-            password_hash,
-            created_at
-        ))
-
-        conn.commit()
-        conn.close()
-
-        return {
-            "success": True,
-            "message": "Student registered successfully",
-            "student_key": student_key
-        }
-
-    except sqlite3.IntegrityError:
-        conn.close()
-        return {
-            "success": False,
-            "message": "Email already registered"
-        }
-
+        db.add(new_student)
+        db.commit()
+        return {"success": True, "message": "Registered successfully", "student_key": student_key}
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "message": "Email already registered or connection error"}
+    finally:
+        db.close()
 
 def login_student(student_key, password):
-    if not student_key or not password:
-        return {
-            "success": False,
-            "message": "Student key and password are required"
-        }
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    password_hash = hash_password(password)
-
-    cursor.execute("""
-    SELECT * FROM students
-    WHERE student_key = ? AND password_hash = ?
-    """, (student_key, password_hash))
-
-    student = cursor.fetchone()
-    
-    if student:
-        # Check if onboarding is completed
-        cursor.execute("SELECT COUNT(*) FROM onboarding_answers WHERE student_id = ?", (student["id"],))
-        onboarding_count = cursor.fetchone()[0]
-        onboarding_completed = onboarding_count > 0
-
-        conn.close()
-        return {
-            "success": True,
-            "message": "Login successful",
-            "onboarding_completed": onboarding_completed,
-            "student": {
-                "id": student["id"],
-                "student_key": student["student_key"],
-                "first_name": student["first_name"],
-                "middle_name": student["middle_name"],
-                "last_name": student["last_name"],
-                "email": student["email"]
+    db = SessionLocal()
+    try:
+        pwd_hash = hash_password(password)
+        student = db.query(Student).filter(Student.student_key == student_key, Student.password_hash == pwd_hash).first()
+        
+        if student:
+            onboarding_count = db.query(OnboardingAnswer).filter(OnboardingAnswer.student_id == student.id).count()
+            return {
+                "success": True,
+                "onboarding_completed": onboarding_count > 0,
+                "student": {
+                    "id": student.id,
+                    "student_key": student.student_key,
+                    "first_name": student.first_name,
+                    "last_name": student.last_name,
+                    "email": student.email
+                }
             }
-        }
+        return {"success": False, "message": "Invalid credentials"}
+    finally:
+        db.close()
 
-    conn.close()
-    return {
-        "success": False,
-        "message": "Invalid student key or password"
-    }
-    
 def save_onboarding_answer(student_id, question, answer):
-    conn = get_connection()
-    cursor = conn.cursor()
+    db = SessionLocal()
+    try:
+        ans = OnboardingAnswer(
+            student_id=student_id,
+            question=question,
+            answer=answer,
+            created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+        db.add(ans)
+        db.commit()
+        return {"success": True}
+    finally:
+        db.close()
 
-    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    cursor.execute("""
-    INSERT INTO onboarding_answers (student_id, question, answer, created_at)
-    VALUES (?, ?, ?, ?)
-    """, (student_id, question, answer, created_at))
-
-    conn.commit()
-    conn.close()
-
-    return {
-        "success": True,
-        "message": "Answer saved successfully"
-    }
-    
 def get_onboarding_answers(student_id):
-    conn = get_connection()
-    cursor = conn.cursor()
+    db = SessionLocal()
+    try:
+        return db.query(OnboardingAnswer.question, OnboardingAnswer.answer).filter(OnboardingAnswer.student_id == student_id).all()
+    finally:
+        db.close()
 
-    cursor.execute("""
-    SELECT question, answer FROM onboarding_answers
-    WHERE student_id = ?
-    ORDER BY id ASC
-    """, (student_id,))
+def get_student_profile_data(student_id):
+    """Retrieve full student profile and name data (Hybrid compatible)"""
+    db = SessionLocal()
+    try:
+        profile = db.query(StudentProfile).filter(StudentProfile.student_id == student_id).first()
+        student = db.query(Student).filter(Student.id == student_id).first()
+        
+        if not student:
+            return None
+            
+        full_name = f"{student.first_name} {student.middle_name or ''} {student.last_name}".strip()
+        full_name = " ".join(full_name.split())
+        
+        if not profile:
+            return {"full_name": full_name}
 
-    answers = cursor.fetchall()
-    conn.close()
-
-    return answers
-
+        return {
+            "full_name": full_name,
+            "degree": profile.degree,
+            "semester": profile.semester,
+            "specialization": profile.specialization,
+            "career_goal": profile.career_goal,
+            "skills": profile.skills,
+            "weak_areas": profile.weak_areas,
+            "daily_study_hours": profile.daily_study_hours
+        }
+    finally:
+        db.close()
 
 def save_student_profile(student_id, degree, semester, specialization, career_goal, skills, weak_areas, daily_study_hours):
-    conn = get_connection()
-    cursor = conn.cursor()
+    db = SessionLocal()
+    try:
+        profile = db.query(StudentProfile).filter(StudentProfile.student_id == student_id).first()
+        if not profile:
+            profile = StudentProfile(student_id=student_id)
+            db.add(profile)
+        
+        profile.degree = degree
+        profile.semester = semester
+        profile.specialization = specialization
+        profile.career_goal = career_goal
+        profile.skills = skills
+        profile.weak_areas = weak_areas
+        profile.daily_study_hours = daily_study_hours
+        profile.created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        db.commit()
+        return {"success": True}
+    finally:
+        db.close()
 
-    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    cursor.execute("""
-    INSERT OR REPLACE INTO student_profiles (
-        student_id,
-        degree,
-        semester,
-        specialization,
-        career_goal,
-        skills,
-        weak_areas,
-        daily_study_hours,
-        created_at
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        student_id,
-        degree,
-        semester,
-        specialization,
-        career_goal,
-        skills,
-        weak_areas,
-        daily_study_hours,
-        created_at
-    ))
-
-    conn.commit()
-    conn.close()
-
-    return {
-        "success": True,
-        "message": "Student profile saved successfully"
-    }
-    
 def save_chat_history(student_id, user_message, ai_response, sources_used):
-    conn = get_connection()
-    cursor = conn.cursor()
+    db = SessionLocal()
+    try:
+        history = ChatHistory(
+            student_id=student_id,
+            user_message=user_message,
+            ai_response=ai_response,
+            sources_used=sources_used,
+            created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+        db.add(history)
+        db.commit()
+        return {"success": True}
+    finally:
+        db.close()
 
-    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    cursor.execute("""
-    INSERT INTO chat_history (
-        student_id,
-        user_message,
-        ai_response,
-        sources_used,
-        created_at
-    )
-    VALUES (?, ?, ?, ?, ?)
-    """, (
-        student_id,
-        user_message,
-        ai_response,
-        sources_used,
-        created_at
-    ))
-
-    conn.commit()
-    conn.close()
-
-    return {
-        "success": True,
-        "message": "Chat history saved successfully"
-    }
+# Initialize tables on startup
+if __name__ == "__main__":
+    create_tables()
+    print("✅ Database Tables initialized!")
