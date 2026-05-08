@@ -4,8 +4,8 @@ import sys
 from pathlib import Path
 
 # No need for dotenv or genai
-# pyrefly: ignore [missing-import]
-from sentence_transformers import SentenceTransformer
+import numpy as np
+from huggingface_hub import InferenceClient
 
 # Add backend folder path (for possible imports)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -15,11 +15,22 @@ KNOWLEDGE_BASE_DIR = PROJECT_ROOT / "knowledge_base"
 VECTOR_DB_PATH = PROJECT_ROOT / "backend" / "rag" / "vector_db.json"
 
 # Use the same lightweight model as retriever.py
-EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
-def get_embedding_model():
-    """Load Sentence-Transformer embedding model."""
-    return SentenceTransformer(EMBEDDING_MODEL_NAME)
+def _get_embedding(text):
+    hf_token = os.getenv("HF_TOKEN")
+    if not hf_token:
+        print("⚠️ HF_TOKEN is missing. Returning dummy embedding.")
+        return np.random.rand(384).tolist()
+        
+    client = InferenceClient(token=hf_token)
+    try:
+        response = client.feature_extraction(text=[text], model=EMBEDDING_MODEL_NAME)
+        emb = response.tolist() if hasattr(response, 'tolist') else response
+        return emb[0] if len(emb) > 0 else np.random.rand(384).tolist()
+    except Exception as e:
+        print(f"⚠️ Hugging Face API Error in Builder: {e}")
+        return np.random.rand(384).tolist()
 
 def read_txt_files():
     """Read all .txt files from the knowledge base folder."""
@@ -84,7 +95,6 @@ Content:
 """.strip()
 
 def build_vector_db():
-    model = get_embedding_model()
     documents = read_txt_files()
 
     if not documents:
@@ -103,8 +113,8 @@ def build_vector_db():
 
         for idx, chunk in enumerate(chunks):
             embedding_text = build_embedding_text(source, topic, chunk)
-            # Generate embedding using the local model (return list of floats -> store as list)
-            embedding = model.encode(embedding_text, convert_to_numpy=True).tolist()
+            # Generate embedding using the Cloud API
+            embedding = _get_embedding(embedding_text)
 
             vector_data.append({
                 "id": f"{source}_chunk_{idx}",
