@@ -18,3 +18,5 @@ langchain-text-splitters
 pypdf
 numpy
 pyyaml
+resend
+watchdog
