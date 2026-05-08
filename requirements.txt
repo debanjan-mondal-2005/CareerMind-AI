@@ -15,7 +15,7 @@ langchain-groq
 langchain-huggingface
 langchain-community
 langchain-text-splitters
-pypdf
+pymupdf
 numpy
 pyyaml
 resend
