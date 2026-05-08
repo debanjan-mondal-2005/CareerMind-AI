@@ -13,7 +13,9 @@ env/
 
 # Local Uploads
 backend/uploads/
-backend/vector_db/
+backend/rag/pdf_vectors/
+backend/rag/chat_memories/
+backend/rag/vector_db.json
 
 # OS
 .DS_Store
