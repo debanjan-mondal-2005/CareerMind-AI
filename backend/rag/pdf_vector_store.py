@@ -16,6 +16,16 @@ def _get_model():
         _model = SentenceTransformer(EMBEDDING_MODEL_NAME)
     return _model
 
+def cosine_similarity(vec1, vec2):
+    vec1 = np.array(vec1)
+    vec2 = np.array(vec2)
+    dot = np.dot(vec1, vec2)
+    norm1 = np.linalg.norm(vec1)
+    norm2 = np.linalg.norm(vec2)
+    if norm1 == 0 or norm2 == 0:
+        return 0
+    return dot / (norm1 * norm2)
+
 def chunk_text(text, chunk_size=400, overlap=80):
     chunks = []
     start = 0
@@ -58,9 +68,7 @@ def search_pdf_vector_db(student_id, query, top_k=3, threshold=0.4):
     query_emb = model.encode(query, convert_to_numpy=True)
     results = []
     for item in data:
-        sim = np.dot(query_emb, item["embedding"]) / (
-            np.linalg.norm(query_emb) * np.linalg.norm(item["embedding"])
-        )
+        sim = cosine_similarity(query_emb, item["embedding"])
         if sim >= threshold:
             results.append({"text": item["text"], "score": float(sim)})
     results.sort(key=lambda x: x["score"], reverse=True)

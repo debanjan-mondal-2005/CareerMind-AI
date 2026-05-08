@@ -3,6 +3,7 @@ from rag.retriever import retrieve_relevant_chunks          # knowledge base
 from rag.pdf_vector_store import search_pdf_vector_db        # PDF vectors
 from rag.chat_memory import search_chat_memory, store_chat_memory
 import os
+# pyrefly: ignore [missing-import]
 from tavily import TavilyClient
 
 class CareerMentorAgent:
@@ -99,7 +100,9 @@ Answer:"""
     def _answer_from_context(self, user_question, context_chunks, student_profile=None):
         if not context_chunks:
             return None
-        prompt = self._build_answer_prompt(context_chunks, user_question, student_profile)
+        # This is a legacy method, keeping for backward compatibility if needed elsewhere
+        context = "\n\n".join([c["text"] for c in context_chunks])
+        prompt = f"Answer this question based on context:\nContext: {context}\nQuestion: {user_question}"
         return self.llm.generate_response(prompt)
 
     def is_llm_error(self, response):
@@ -163,82 +166,45 @@ Answer:"""
                         "sources": [], "fallback": False}
 
         if not self.student_id:
-            # Fallback to simple LLM
             answer = self.llm.generate_response(user_question)
             return {"answer": answer, "sources": [], "fallback": False}
 
-        # ---- Retrieval-first pipeline ----
-        answer = None
-
-        # 1. PDF vector DB (if pdf loaded) - Primary source
+        # 1. PDF Search
+        pdf_chunks = []
         if self.current_pdf:
-            # 1a. Vector search first (Semantic)
-            chunks = search_pdf_vector_db(self.student_id, user_question, top_k=5, threshold=0.15)
-            
-            # 1b. Hybrid Fallback: Keyword search for ANY question
+            pdf_chunks = search_pdf_vector_db(self.student_id, user_question, top_k=5, threshold=0.15)
             try:
                 from document_ai.pdf_reader import extract_text_from_pdf
                 pdf_text = extract_text_from_pdf(self.current_pdf)
-                
-                # Extract meaningful keywords from the question
-                stop_words = ["what", "where", "when", "how", "tell", "show", "current", "study", "university", "question"]
-                keywords = [w.strip("?,.!") for w in user_question.lower().split() if len(w) > 3 and w.lower() not in stop_words]
-                
-                if keywords:
-                    relevant_lines = []
-                    for line in pdf_text.split('\n'):
-                        if any(kw in line.lower() for kw in keywords):
-                            relevant_lines.append(line)
-                    
-                    if relevant_lines:
-                        # Add these as a manual chunk to give the LLM more context
-                        keyword_chunk = {"text": "\n".join(relevant_lines[:15]), "score": 1.0}
-                        chunks = (chunks or []) + [keyword_chunk]
+                keywords = [w.strip("?,.!") for w in user_question.lower().split() if len(w) > 3]
+                relevant_lines = [l for l in pdf_text.split('\n') if any(kw in l.lower() for kw in keywords)]
+                if relevant_lines:
+                    pdf_chunks = (pdf_chunks or []) + [{"text": "\n".join(relevant_lines[:10]), "score": 1.0}]
             except: pass
 
-            if chunks:
-                answer = self._answer_from_context(user_question, chunks, student_profile)
-                if answer and "NOT_FOUND_IN_CONTEXT" not in answer and not self.is_llm_error(answer):
-                    store_chat_memory(self.student_id, user_question, answer)
-                    return {"answer": answer,
-                            "sources": [{"source": "Uploaded PDF", "topic": "Student's Document"}],
-                            "fallback": False}
-
-        # 2. Chat memory
-        mem = search_chat_memory(self.student_id, user_question)
-        if mem:
-            answer = mem["answer"]
-            store_chat_memory(self.student_id, user_question, answer)   # re-store for freshness
-            return {"answer": answer,
-                    "sources": [{"source": "Chat Memory", "topic": "Previous conversation"}],
-                    "fallback": False}
-
-        # 3. Knowledge base RAG
+        # 2. RAG Search
         rag_chunks = retrieve_relevant_chunks(user_question, top_k=3)
-        if rag_chunks:
-            answer = self._answer_from_context(user_question, rag_chunks, student_profile)
-            if answer and "NOT_FOUND_IN_CONTEXT" not in answer and not self.is_llm_error(answer):
-                store_chat_memory(self.student_id, user_question, answer)
-                sources = [{"source": c["source"], "topic": c.get("topic", ""), "score": c["score"]}
-                           for c in rag_chunks]
-                return {"answer": answer, "sources": sources, "fallback": False}
 
-        # 4. Web Search Fallback (NEW)
+        # 3. Web Search
+        web_results = []
+        personal_terms = ["my name", "my university", "my cgpa", "my gpa", "my project", "my email", "i study"]
+        is_personal = any(term in user_question.lower() for term in personal_terms)
+        
         if self.web_client:
-            web_results = self._search_web(user_question)
-            if web_results:
-                answer = self._answer_from_web(user_question, web_results, student_profile)
-                if answer and not self.is_llm_error(answer):
-                    store_chat_memory(self.student_id, user_question, answer)
-                    sources = [{"source": res["title"], "url": res["url"]} for res in web_results]
-                    return {"answer": answer, "sources": sources, "fallback": True}
+            if not is_personal or not pdf_chunks:
+                web_results = self._search_web(user_question)
 
-        # 5. Pure LLM as last resort
-        answer = self.llm.generate_response(user_question)
-        if self.is_llm_error(answer):
-            answer = "Sorry, I couldn't generate a response right now."
+        # 4. Generate Response
+        prompt = self._build_multi_source_prompt(user_question, student_profile, pdf_chunks, rag_chunks, web_results)
+        answer = self.llm.generate_response(prompt)
+        
+        # 5. Result metadata
+        sources = []
+        if pdf_chunks: sources.append({"source": "Uploaded PDF", "topic": "Document"})
+        if web_results: sources.extend([{"source": res['title'], "url": res["url"]} for res in web_results[:2]])
+        
         store_chat_memory(self.student_id, user_question, answer)
-        return {"answer": answer, "sources": [], "fallback": False}
+        return {"answer": answer, "sources": sources, "fallback": bool(web_results)}
 
     # Streaming variant (simplified: just uses PDF+RAG like before)
     def stream_answer_question(self, student_profile, user_question):
