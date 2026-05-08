@@ -89,7 +89,14 @@ app.mount(
 # In-memory PDF storage per student (reset on restart)
 PDF_MEMORY = {}
 
-create_tables()
+# Initialize tables safely
+try:
+    print("⏳ Initializing database tables...")
+    create_tables()
+    print("✅ Database initialized successfully.")
+except Exception as e:
+    print(f"⚠️ Database initialization skipped or failed: {e}")
+    print("The app will attempt to continue, but database features may be unavailable.")
 
 # -----------------------------
 # Live Reload (WebSocket + Watchdog)

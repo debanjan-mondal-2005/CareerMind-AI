@@ -1,20 +1,23 @@
 import json
-from pathlib import Path
-# pyrefly: ignore [missing-import]
-from sentence_transformers import SentenceTransformer
-from document_ai.pdf_reader import extract_text_from_pdf
 import numpy as np
+from pathlib import Path
+from document_ai.pdf_reader import extract_text_from_pdf
 
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 PDF_VECTORS_DIR = Path(__file__).resolve().parent / "pdf_vectors"
 PDF_VECTORS_DIR.mkdir(exist_ok=True)
 
+# Lazy load model to save memory on startup
 _model = None
 
 def _get_model():
     global _model
     if _model is None:
+        print("⏳ Loading embedding model (this may take a moment)...")
+        # pyrefly: ignore [missing-import]
+        from sentence_transformers import SentenceTransformer
         _model = SentenceTransformer(EMBEDDING_MODEL_NAME)
+        print("✅ Embedding model loaded.")
     return _model
 
 def cosine_similarity(vec1, vec2):
