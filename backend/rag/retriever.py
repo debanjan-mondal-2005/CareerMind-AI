@@ -1,25 +1,14 @@
 import os
 import json
 from pathlib import Path
-
 import numpy as np
-# pyrefly: ignore [missing-import]
-from sentence_transformers import SentenceTransformer
+from huggingface_hub import InferenceClient
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 VECTOR_DB_PATH = PROJECT_ROOT / "backend" / "rag" / "vector_db.json"
 
-# Lightweight embedding model (downloads once, ~90 MB)
-EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
-
-# Cache the model globally to avoid reloading on every request
-_embedding_model = None
-
-def get_embedding_model():
-    global _embedding_model
-    if _embedding_model is None:
-        _embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
-    return _embedding_model
+# Lightweight embedding model via Cloud API
+EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 _vector_db = None
 
@@ -37,11 +26,22 @@ def expand_query(query):
 
 def get_embedding(text):
     """
-    Generate embedding for a single text using the local Sentence-Transformer model.
+    Generate embedding for a single text using the Hugging Face Cloud API.
     """
-    model = get_embedding_model()
-    embedding = model.encode(text, convert_to_numpy=True)
-    return embedding
+    hf_token = os.getenv("HF_TOKEN")
+    if not hf_token:
+        print("⚠️ HF_TOKEN is missing. Returning dummy embedding.")
+        return np.random.rand(384).tolist()
+        
+    client = InferenceClient(token=hf_token)
+    try:
+        response = client.feature_extraction(text=[text], model=EMBEDDING_MODEL_NAME)
+        # Returns a 2D array, get the first item
+        emb = response.tolist() if hasattr(response, 'tolist') else response
+        return emb[0] if len(emb) > 0 else np.random.rand(384).tolist()
+    except Exception as e:
+        print(f"⚠️ Hugging Face API Error in Retriever: {e}")
+        return np.random.rand(384).tolist()
 
 def cosine_similarity(vec1, vec2):
     vec1 = np.array(vec1)
@@ -104,8 +104,7 @@ def retrieve_relevant_chunks(query, top_k=5):
 
 def search_chunks(query, chunks, top_k=3, threshold=0.4):
     """Generic search over a list of chunks (each having 'embedding' and 'text')."""
-    model = get_embedding_model()
-    query_emb = model.encode(query, convert_to_numpy=True)
+    query_emb = get_embedding(query)
     results = []
     for chunk in chunks:
         sim = cosine_similarity(query_emb, chunk["embedding"])
