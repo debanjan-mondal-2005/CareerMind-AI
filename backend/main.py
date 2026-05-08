@@ -91,11 +91,11 @@ PDF_MEMORY = {}
 
 # Initialize tables safely
 try:
-    print("⏳ Initializing database tables...")
+    print("Initializing database tables...")
     create_tables()
-    print("✅ Database initialized successfully.")
+    print("Database initialized successfully.")
 except Exception as e:
-    print(f"⚠️ Database initialization skipped or failed: {e}")
+    print(f"Database initialization skipped or failed: {e}")
     print("The app will attempt to continue, but database features may be unavailable.")
 
 # -----------------------------
@@ -147,7 +147,7 @@ async def broadcast_reloads():
         # Clear queue if multiple changes happened
         while not reload_queue.empty():
             reload_queue.get_nowait()
-        print("🔄 File change detected! Refreshing all clients...")
+        print("File change detected! Refreshing all clients...")
         await manager.broadcast("reload")
 
 @app.on_event("startup")
