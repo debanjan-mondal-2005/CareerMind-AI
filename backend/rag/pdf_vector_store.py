@@ -11,6 +11,7 @@ PDF_VECTORS_DIR.mkdir(exist_ok=True)
 
 def _get_embeddings(texts):
     """Get embeddings from Hugging Face Cloud API"""
+    hf_token = os.getenv("HF_TOKEN")
     if not hf_token:
         print("⚠️ HF_TOKEN is missing. Returning dummy embeddings.")
         return [np.random.rand(384).tolist() for _ in texts]

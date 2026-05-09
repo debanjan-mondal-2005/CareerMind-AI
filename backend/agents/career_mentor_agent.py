@@ -90,6 +90,34 @@ RULES:
             print(f"Web search error: {e}")
             return None
 
+    def answer_question(self, student_profile, user_question):
+        """Non-streaming version for standard endpoints."""
+        full_answer = ""
+        is_image = False
+        image_url = ""
+        
+        for token in self.stream_answer_question(student_profile, user_question):
+            if "IMAGE_URL:" in token:
+                parts = token.split("IMAGE_URL:")
+                full_answer = parts[0].replace("🎨 Generating your image, please wait a moment...\n\n", "").strip()
+                image_url = parts[1].strip()
+                is_image = True
+                break
+            full_answer += token
+            
+        if is_image:
+            return {
+                "type": "image",
+                "answer": full_answer or "Generated an image for you.",
+                "url": image_url
+            }
+        
+        return {
+            "type": "text",
+            "answer": full_answer.strip(),
+            "sources": [] # Standard endpoints don't need detailed sources for now, but we keep the key for compatibility
+        }
+
     def stream_answer_question(self, student_profile, user_question):
         if self.is_image_generation_request(user_question):
             yield "🎨 Generating your image, please wait a moment...\n\n"

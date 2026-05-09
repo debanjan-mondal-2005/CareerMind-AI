@@ -251,8 +251,19 @@ def authenticate_student(student_key, password):
         return None, login_result
     return login_result["student"], login_result
 
-def is_valid_ai_response(answer):
-    return "LLM error" not in answer and '"error"' not in answer
+def is_valid_ai_response(response: str) -> bool:
+    """Check if the AI response is valid and not an error/empty."""
+    if not response or not isinstance(response, str):
+        return False
+    error_keywords = ["error:", "failed to", "cannot find", "unable to", "api_key not found"]
+    resp_lower = response.lower().strip()
+    if any(kw in resp_lower for kw in error_keywords) and len(resp_lower) < 150:
+        return False
+    return len(resp_lower) > 5
+
+async def error_gen(message: str):
+    """Yield a simple error message for streaming endpoints."""
+    yield f"⚠️ Error: {message}"
 
 def get_student_full_name(student):
     first_name = student.get("first_name", "")
