@@ -28,8 +28,20 @@ else:
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Initialize SQLAlchemy
-engine = create_engine(DATABASE_URL)
+# Initialize SQLAlchemy with resilience for Cloud/Render
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(DATABASE_URL)
+else:
+    # Add timeout and pool recycling for Supabase/Render
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+        connect_args={
+            "connect_timeout": 10,
+            "sslmode": "require"
+        }
+    )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

@@ -89,14 +89,22 @@ app.mount(
 # In-memory PDF storage per student (reset on restart)
 PDF_MEMORY = {}
 
-# Initialize tables safely
-try:
-    print("Initializing database tables...")
-    create_tables()
-    print("Database initialized successfully.")
-except Exception as e:
-    print(f"Database initialization skipped or failed: {e}")
-    print("The app will attempt to continue, but database features may be unavailable.")
+# -----------------------------
+# Startup Database Logic
+# -----------------------------
+async def init_db_task():
+    try:
+        print("Checking environment variables...")
+        print(f"HF_TOKEN set: {bool(os.getenv('HF_TOKEN'))}")
+        print(f"GROQ_API_KEY set: {bool(os.getenv('GROQ_API_KEY'))}")
+        print(f"DATABASE_URL set: {bool(os.getenv('DATABASE_URL'))}")
+        
+        print("Initializing database tables (background task)...")
+        # Run synchronous create_tables in a thread to not block event loop
+        await asyncio.to_thread(create_tables)
+        print("Database initialized successfully.")
+    except Exception as e:
+        print(f"Database initialization failed: {e}")
 
 # -----------------------------
 # Live Reload (WebSocket + Watchdog)
@@ -152,18 +160,22 @@ async def broadcast_reloads():
 
 @app.on_event("startup")
 async def startup_event():
-    # Start the watchdog observer for frontend (dev only, safe to skip on Render)
-    try:
-        frontend_path = str(PROJECT_ROOT / "frontend")
-        handler = LiveReloadHandler(reload_queue)
-        observer = Observer()
-        observer.schedule(handler, frontend_path, recursive=True)
-        observer.start()
-        app.state.observer = observer
-    except Exception as e:
-        print(f"Live reload watcher not started (expected on Render): {e}")
-    # Start the broadcaster task
-    asyncio.create_task(broadcast_reloads())
+    # 1. Initialize DB (non-blocking task)
+    asyncio.create_task(init_db_task())
+
+    # 2. Start the watchdog observer for frontend (dev only, safe to skip on Render)
+    if not os.getenv("RENDER"):
+        try:
+            frontend_path = str(PROJECT_ROOT / "frontend")
+            if os.path.exists(frontend_path):
+                handler = LiveReloadHandler(reload_queue)
+                observer = Observer()
+                observer.schedule(handler, frontend_path, recursive=True)
+                observer.start()
+                app.state.observer = observer
+                asyncio.create_task(broadcast_reloads())
+        except Exception as e:
+            print(f"Live reload watcher not started: {e}")
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -329,7 +341,27 @@ def root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy", "service": "CareerMind AI Backend"}
+    health = {
+        "status": "healthy",
+        "database": "unknown",
+        "env": {
+            "HF_TOKEN": bool(os.getenv("HF_TOKEN")),
+            "GROQ_API_KEY": bool(os.getenv("GROQ_API_KEY")),
+            "TAVILY_API_KEY": bool(os.getenv("TAVILY_API_KEY")),
+            "DATABASE_URL": bool(os.getenv("DATABASE_URL"))
+        }
+    }
+    try:
+        from sqlalchemy import text
+        from database.db import SessionLocal
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        health["database"] = "connected"
+    except Exception as e:
+        health["database"] = f"error: {str(e)}"
+        health["status"] = "degraded"
+    return health
 
 # ----------------------------------------------------------------------
 # Register / Login / Onboarding / Profile
@@ -721,20 +753,19 @@ from fastapi.responses import StreamingResponse
 
 @app.post("/smart-chat-stream")
 async def smart_chat_stream(request: CareerChatRequest):
+    async def error_gen(msg):
+        yield f"⚠️ {msg}"
+
     student, login_result = authenticate_student(request.student_key, request.password)
     if not student:
-        return login_result
+        return StreamingResponse(error_gen(login_result.get("message", "Authentication failed")), media_type="text/plain")
 
     profile = get_student_profile_data(student["id"])
     if not profile:
-        async def error_gen():
-            yield "Student profile not found. Please complete onboarding first."
-        return StreamingResponse(error_gen(), media_type="text/plain")
+        return StreamingResponse(error_gen("Student profile not found. Please complete onboarding first."), media_type="text/plain")
 
     question = request.question.strip()
     
-    # 2. Main AI Agent (CareerMentorAgent)
-    # This handles PDF Search, Knowledge Base, and Web Search (Tavily) fallback.
     agent = CareerMentorAgent()
     agent.set_student_id(student["id"])
     pdf_data = PDF_MEMORY.get(student["id"])
@@ -742,8 +773,12 @@ async def smart_chat_stream(request: CareerChatRequest):
         agent.set_current_pdf(pdf_data["path"])
     
     async def token_generator():
-        for token in agent.stream_answer_question(profile, question):
-            yield token
+        try:
+            for token in agent.stream_answer_question(profile, question):
+                yield token
+        except Exception as e:
+            yield f"\n\n⚠️ Error during streaming: {str(e)}"
+
     return StreamingResponse(token_generator(), media_type="text/plain")
 
     # Normal career question -> streaming
