@@ -438,6 +438,7 @@ async function registerStudent() {
         });
         const data = await response.json();
         if (data.registration && data.registration.success) {
+            clearSession(); // Wipe any old data before starting new account
             studentFirstName = firstName;
             localStorage.setItem("student_first_name", studentFirstName);
             showSuccess(resultBox, "Account created. Your student key has been sent to your email. Now complete your profile.");
@@ -486,6 +487,7 @@ async function loginStudent() {
         });
         const data = await response.json();
         if (data.success) {
+            clearSession(); // Wipe any old data before logging in
             studentKey = key;
             studentPassword = password;
             if (data.student && data.student.first_name) {
@@ -517,6 +519,11 @@ async function loginStudent() {
 }
 
 function logout() {
+    clearSession();
+    showLogin();
+}
+
+function clearSession() {
     localStorage.removeItem("student_key");
     localStorage.removeItem("student_password");
     localStorage.removeItem("student_first_name");
@@ -532,11 +539,12 @@ function logout() {
     const outputArea = document.getElementById("output-area");
     const input = document.getElementById("user-question");
     const welcomeScreen = document.getElementById("welcome-screen");
+    const historyList = document.getElementById("chat-history-list");
+    
     if (outputArea) outputArea.innerHTML = "";
     if (input) input.value = "";
     if (welcomeScreen) welcomeScreen.classList.remove("hidden");
-
-    showLogin();
+    if (historyList) historyList.innerHTML = "";
 }
 
 // ---------- UI utilities ----------
