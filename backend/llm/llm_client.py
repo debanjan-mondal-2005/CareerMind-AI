@@ -12,11 +12,16 @@ class LLMClient:
         self.model = os.getenv("GROQ_MODEL", "llama3-8b-8192")
         self.client = Groq(api_key=api_key)
 
-    def generate_response(self, prompt: str, max_tokens: int = 1024, temperature: float = 0.1) -> str:
+    def generate_response(self, prompt: str, system_prompt: str = None, max_tokens: int = 1024, temperature: float = 0.1) -> str:
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=messages,
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
@@ -24,18 +29,22 @@ class LLMClient:
         except Exception as e:
             return f"LLM error: {str(e)}"
 
-    def stream_response(self, prompt: str, max_tokens: int = 1024, temperature: float = 0.1):
+    def stream_response(self, prompt: str, system_prompt: str = None, max_tokens: int = 1024, temperature: float = 0.1):
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        
         try:
             stream = self.client.chat.completions.create(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=messages,
                 max_tokens=max_tokens,
                 temperature=temperature,
                 stream=True,
             )
             for chunk in stream:
-                delta = chunk.choices[0].delta.content
-                if delta:
-                    yield delta
+                if chunk.choices and chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
         except Exception as e:
             yield f"LLM error: {str(e)}"

@@ -33,78 +33,40 @@ class CareerMentorAgent:
         q = user_question.lower()
         return any(kw in q for kw in image_keywords)
 
-    def _build_multi_source_prompt(self, user_question, student_profile, pdf_chunks=None, rag_chunks=None, web_results=None):
-        formatted_profile = self.format_student_profile(student_profile)
-        
-        pdf_text = ""
-        if pdf_chunks:
-            pdf_text = "\n".join([c["text"] for c in pdf_chunks])
-            
-        rag_text = ""
-        if rag_chunks:
-            rag_text = "\n".join([c["text"] for c in rag_chunks])
-            
-        web_text = ""
-        if web_results:
-            for i, res in enumerate(web_results, start=1):
-                web_text += f"Source {i}: {res['title']}\nContent: {res['content']}\nURL: {res['url']}\n\n"
-
-        prompt = f"""You are CareerMind AI, a professional and personalized Career Mentor.
-        
-Student Profile:
-{formatted_profile}
-
-Information Sources:
-1. Student Profile (Primary): Use this for all personal questions about the student (name, skills, goals).
-2. Uploaded Document (PDF): {pdf_text if pdf_text else "No relevant info found."}
-3. Internal Career Database: {rag_text if rag_text else "No relevant info found."}
-4. Web Search Results: {web_text if web_text else "No relevant info found."}
-
-Question: "{user_question}"
-
-Instructions:
-1. Act as a Career Mentor. Be encouraging and professional.
-2. PRIORITY: Student Profile > PDF > Internal Database > Web Search.
-3. If the question is about the student personally (e.g., "what do you know about me", "my name", "my skills"), you MUST answer using the Student Profile provided above. NEVER use web search results for personal information about the student.
-4. Only use Web Search for general career advice, company information, or market trends.
-5. If the user just says "Hello" or "Hi", reply warmly as CareerMind AI and offer career assistance.
-6. Include source URLs ONLY if you used web search results.
-7. Be direct and helpful.
-
-Answer:"""
-        return prompt
-
-    def _build_answer_prompt(self, context_chunks, user_question, student_profile=None):
-        context = "\n\n".join([c["text"] for c in context_chunks])
+    def _build_multi_source_prompt(self, user_question, student_profile, pdf_chunks=None, rag_chunks=None, web_results=None, memory_chunks=None):
         profile_text = self.format_student_profile(student_profile) if student_profile else "Not available"
         
-        return f"""You are CareerMind AI, a helpful and very concise career mentor.
+        context = ""
+        if memory_chunks:
+            context += "Past Relevant Conversation:\n" + f"Q: {memory_chunks.get('question')}\nA: {memory_chunks.get('answer')}" + "\n\n"
+        if pdf_chunks:
+            context += "Document Context:\n" + "\n".join([c["text"] for c in pdf_chunks]) + "\n\n"
+        if rag_chunks:
+            context += "Knowledge Base:\n" + "\n".join([c["text"] for c in rag_chunks]) + "\n\n"
+        if web_results:
+            context += "Web Search Results:\n"
+            for r in web_results:
+                context += f"- {r['title']}: {r['content']} (URL: {r['url']})\n"
         
-Student Profile:
+        system_prompt = f"""You are CareerMind AI, a professional and VERY CONCISE career mentor.
+        
+Student Profile (Current Facts):
 {profile_text}
 
-Context from Uploaded Document:
-{context}
+Additional Context:
+{context if context else "No additional context found."}
 
-Goal: Answer the student's question accurately using the Profile and Document Context.
-
-Instructions:
-1. Be extremely direct and concise. If asked for a specific fact (like CGPA or University), just provide that fact.
-2. If the answer is in the document, use it.
-3. If the answer is NOT in the document but you can infer it from the profile or general knowledge (for general questions), answer it.
-4. Do NOT use polite fillers like "Hello!", "I'm here to support you", etc. unless it's a greeting.
-5. If you absolutely cannot find or infer the answer, say "I couldn't find that specific detail in your documents."
-
-Question: {user_question}
-Answer:"""
-
-    def _answer_from_context(self, user_question, context_chunks, student_profile=None):
-        if not context_chunks:
-            return None
-        # This is a legacy method, keeping for backward compatibility if needed elsewhere
-        context = "\n\n".join([c["text"] for c in context_chunks])
-        prompt = f"Answer this question based on context:\nContext: {context}\nQuestion: {user_question}"
-        return self.llm.generate_response(prompt)
+RULES:
+1. ALWAYS prioritize the 'Student Profile' for current information (Current University, Degree, Semester). Only use the Document Context for details not in the profile (like CGPA, projects, history).
+2. BE EXTREMELY DIRECT. If the user asks a specific question (e.g. "What is my CGPA?"), provide the answer immediately without long introductions.
+3. NO REPETITIVE GREETINGS. Do not start every message with "Hello!", "It's great to connect!", or "I'm CareerMind AI". Just answer the question.
+4. NO FILLER. Do not ask "How can I assist you today?" at the end of every answer.
+5. If the question is about the student personally and the answer is not in the profile or documents, say: "I couldn't find that specific detail in your profile or CV."
+6. For general career questions, use the Knowledge Base or Web Search if needed, and always cite the URL if you use a web result.
+"""
+        user_prompt = f"Question: {user_question}\nAnswer:"
+        
+        return system_prompt, user_prompt
 
     def is_llm_error(self, response):
         if not response:
@@ -112,108 +74,18 @@ Answer:"""
         resp = str(response).lower()
         return any(kw in resp for kw in [
             "llm error", "resource_exhausted", "429",
-            "quota", "rate limit", "generate_content_free_tier"
+            "quota", "rate limit"
         ])
 
     def _search_web(self, query):
         if not self.web_client:
             return None
         try:
-            # Simple web search
             response = self.web_client.search(query=query, max_results=3, search_depth="advanced")
             return response.get("results", [])
         except Exception as e:
             print(f"Web search error: {e}")
             return None
-
-    def _answer_from_web(self, user_question, web_results, student_profile):
-        if not web_results:
-            return None
-        
-        web_context = ""
-        for i, res in enumerate(web_results, start=1):
-            web_context += f"Source {i}: {res['title']}\nContent: {res['content']}\nURL: {res['url']}\n\n"
-        
-        prompt = f"""You are CareerMind AI, a helpful and precise career mentor.
-        
-Student Question: "{user_question}"
-
-I searched the web because this information was not found in the student's uploaded document.
-
-Web Results:
-{web_context}
-
-Instructions:
-1. If the question is about the student personally and the web results are clearly unrelated, state that you couldn't find it in their document.
-2. If the question is general (e.g., "latest trends", "how to learn X", "job openings"), answer it thoroughly using the web results.
-3. Be helpful, concise, and personalized based on the student's profile.
-4. Always include the source URLs at the end.
-
-Answer:"""
-        return self.llm.generate_response(prompt)
-
-    def answer_question(self, student_profile, user_question):
-        # Image generation
-        if self.is_image_generation_request(user_question):
-            try:
-                from image_ai.hf_image_client import generate_image
-                url = generate_image(user_question)
-                return {"type": "image", "url": url,
-                        "answer": "Image generated successfully! Now you can download it.",
-                        "sources": [], "fallback": False}
-            except Exception as e:
-                return {"type": "error",
-                        "answer": f"Failed to generate image: {str(e)}",
-                        "sources": [], "fallback": False}
-
-        if not self.student_id:
-            answer = self.llm.generate_response(user_question)
-            return {"answer": answer, "sources": [], "fallback": False}
-
-        # 1. PDF Search
-        pdf_chunks = []
-        if self.current_pdf:
-            pdf_chunks = search_pdf_vector_db(self.student_id, user_question, top_k=5, threshold=0.15)
-            try:
-                from document_ai.pdf_reader import extract_text_from_pdf
-                pdf_text = extract_text_from_pdf(self.current_pdf)
-                keywords = [w.strip("?,.!") for w in user_question.lower().split() if len(w) > 3]
-                relevant_lines = [l for l in pdf_text.split('\n') if any(kw in l.lower() for kw in keywords)]
-                if relevant_lines:
-                    pdf_chunks = (pdf_chunks or []) + [{"text": "\n".join(relevant_lines[:10]), "score": 1.0}]
-            except: pass
-
-        # 2. RAG Search
-        rag_chunks = retrieve_relevant_chunks(user_question, top_k=3)
-
-        # 3. Web Search
-        web_results = []
-        q_lower = user_question.lower()
-        
-        # Expanded personal and conversational terms
-        personal_terms = ["my name", "my university", "my cgpa", "my gpa", "my project", "my email", "i study", "about me", "know about me", "who am i"]
-        conversational_terms = ["hello", "hi", "hey", "how are you", "good morning", "good evening", "what's up"]
-        
-        is_personal = any(term in q_lower for term in personal_terms)
-        is_conversational = any(q_lower == term or q_lower.startswith(term + " ") for term in conversational_terms)
-        
-        # ONLY search web if NOT personal and NOT conversational
-        if self.web_client and not is_personal and not is_conversational:
-            # Also don't search web if it's a simple career goal check
-            if len(q_lower.split()) > 2: 
-                web_results = self._search_web(user_question)
-
-        # 4. Generate Response
-        prompt = self._build_multi_source_prompt(user_question, student_profile, pdf_chunks, rag_chunks, web_results)
-        answer = self.llm.generate_response(prompt)
-        
-        # 5. Result metadata
-        sources = []
-        if pdf_chunks: sources.append({"source": "Uploaded PDF", "topic": "Document"})
-        if web_results: sources.extend([{"source": res['title'], "url": res["url"]} for res in web_results[:2]])
-        
-        store_chat_memory(self.student_id, user_question, answer)
-        return {"answer": answer, "sources": sources, "fallback": bool(web_results)}
 
     def stream_answer_question(self, student_profile, user_question):
         if self.is_image_generation_request(user_question):
@@ -230,20 +102,24 @@ Answer:"""
                 yield f"⚠️ Failed to generate image: {str(e)}"
             return
 
+        # 0. Search Past Chat Memory
+        memory_chunks = None
+        if self.student_id:
+            try:
+                memory_chunks = search_chat_memory(self.student_id, user_question)
+            except: pass
+
         # 1. PDF Search
         pdf_chunks = []
         if self.current_pdf:
-            from rag.pdf_vector_store import search_pdf_vector_db
             pdf_chunks = search_pdf_vector_db(self.student_id, user_question, top_k=5, threshold=0.15)
             try:
                 from document_ai.pdf_reader import extract_text_from_pdf
                 pdf_text = extract_text_from_pdf(self.current_pdf)
                 
-                # Enhanced keyword search with synonyms
                 query_lower = user_question.lower()
                 search_keywords = [w.strip("?,.!") for w in query_lower.split() if len(w) > 2]
                 
-                # Add common synonyms for better extraction
                 synonyms = {
                     "cgpa": ["gpa", "marks", "percentage", "result", "grade", "pointer", "academic"],
                     "university": ["college", "institute", "school", "education", "lpu"],
@@ -261,13 +137,11 @@ Answer:"""
                 for i, line in enumerate(lines):
                     line_lower = line.lower()
                     if any(kw in line_lower for kw in expanded_keywords):
-                        # Add current line and surrounding lines for context
                         start = max(0, i - 1)
                         end = min(len(lines), i + 2)
                         relevant_lines.append("\n".join(lines[start:end]))
                 
                 if relevant_lines:
-                    # Combine and take unique blocks
                     unique_context = "\n---\n".join(list(set(relevant_lines))[:15])
                     pdf_chunks = (pdf_chunks or []) + [{"text": unique_context, "score": 1.2}]
             except Exception as e:
@@ -280,28 +154,35 @@ Answer:"""
         web_results = []
         q_lower = user_question.lower()
         
-        # Expanded personal and conversational terms
-        personal_terms = ["my name", "my university", "my cgpa", "my gpa", "my project", "my email", "i study", "about me", "know about me", "who am i"]
-        conversational_terms = ["hello", "hi", "hey", "how are you", "good morning", "good evening", "what's up"]
+        personal_terms = ["my name", "my university", "my cgpa", "my gpa", "my project", "my email", "i study", "about me", "who am i"]
+        conversational_terms = ["hello", "hi", "hey", "how are you"]
         
         is_personal = any(term in q_lower for term in personal_terms)
         is_conversational = any(q_lower == term or q_lower.startswith(term + " ") for term in conversational_terms)
         
-        # ONLY search web if NOT personal and NOT conversational
         if self.web_client and not is_personal and not is_conversational:
-            # Also don't search web if it's a simple career goal check
             if len(q_lower.split()) > 2: 
                 web_results = self._search_web(user_question)
 
         # 4. Unified Prompting & Streaming
-        prompt = self._build_multi_source_prompt(user_question, student_profile, pdf_chunks, rag_chunks, web_results)
-        for token in self.llm.stream_response(prompt):
+        system_prompt, user_prompt = self._build_multi_source_prompt(user_question, student_profile, pdf_chunks, rag_chunks, web_results, memory_chunks)
+        
+        full_response = ""
+        for token in self.llm.stream_response(user_prompt, system_prompt=system_prompt):
+            full_response += token
             yield token
 
-    # ---- helper for streaming (copied from old version) ----
+        # 5. Background Storage (Parallel)
+        if self.student_id and full_response.strip():
+            import threading
+            threading.Thread(
+                target=store_chat_memory, 
+                args=(self.student_id, user_question, full_response),
+                daemon=True
+            ).start()
+
     def format_student_profile(self, profile):
         return f"""
-Student Profile:
 Name: {profile.get("full_name", "Student")}
 Degree: {profile.get("degree", "")}
 Semester: {profile.get("semester", "")}
@@ -309,46 +190,5 @@ Specialization: {profile.get("specialization", "")}
 Career Goal: {profile.get("career_goal", "")}
 Current Skills: {profile.get("skills", "")}
 Weak Areas: {profile.get("weak_areas", "")}
-Daily Study Hours: {profile.get("daily_study_hours", "")}
-""".strip()
-
-    def format_rag_context(self, chunks):
-        context = ""
-        for i, chunk in enumerate(chunks, start=1):
-            context += f"""
-Context {i}
-Source: {chunk["source"]}
-Topic: {chunk.get("topic", "")}
-Similarity Score: {chunk["score"]:.4f}
-Text:
-{chunk["text"]}
+Study Hours: {profile.get("daily_study_hours", "")}
 """
-        return context.strip()
-
-    def build_pdf_aware_prompt(self, student_profile, user_question, rag_chunks, pdf_text=None):
-        formatted_profile = self.format_student_profile(student_profile)
-        rag_context = self.format_rag_context(rag_chunks)
-        pdf_section = ""
-        if pdf_text:
-            pdf_section = f"""
-***** Uploaded Document Content *****
-{self._truncate_text(pdf_text, 3000)}
-"""
-        prompt = f"""You are CareerMind AI, a precise career mentor. Answer the question directly and concisely using the context provided.
-Do NOT summarize the entire profile unless asked. Just answer the specific question.
-
-{formatted_profile}
-
-{pdf_section}
-
-RAG Context:
-{rag_context}
-
-Question: {user_question}
-Answer:"""
-        return prompt
-
-    def _truncate_text(self, text, max_chars):
-        if len(text) <= max_chars:
-            return text
-        return text[:max_chars].rsplit(' ', 1)[0] + "..."
