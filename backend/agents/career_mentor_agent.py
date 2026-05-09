@@ -214,16 +214,19 @@ Answer:"""
         store_chat_memory(self.student_id, user_question, answer)
         return {"answer": answer, "sources": sources, "fallback": bool(web_results)}
 
-    # Streaming variant (simplified: just uses PDF+RAG like before)
     def stream_answer_question(self, student_profile, user_question):
         if self.is_image_generation_request(user_question):
-            yield "🎨 Generating your image, please wait a moment..."
+            yield "🎨 Generating your image, please wait a moment...\n\n"
             try:
                 from image_ai.hf_image_client import generate_image
-                url = generate_image(user_question)
-                yield f"Image generated successfully! Now you can download it.\n\nIMAGE_URL:{url}"
+                url_or_error = generate_image(user_question)
+                
+                if url_or_error.startswith("Error:"):
+                    yield f"⚠️ {url_or_error}"
+                else:
+                    yield f"Image generated successfully! Now you can download it.\n\nIMAGE_URL:{url_or_error}"
             except Exception as e:
-                yield f"Failed to generate image: {str(e)}"
+                yield f"⚠️ Failed to generate image: {str(e)}"
             return
 
         # 1. PDF Search
