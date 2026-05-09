@@ -58,7 +58,11 @@ def retrieve_relevant_chunks(query, top_k=5):
     Retrieve the most relevant chunks from the local vector DB.
     Returns a list of dicts with keys: source, topic, chunk_index, text, score.
     """
-    vector_db = load_vector_db()
+    try:
+        vector_db = load_vector_db()
+    except Exception as e:
+        print(f"Vector DB not available (likely on Render): {e}")
+        return []
 
     expanded_query = expand_query(query)
     query_embedding = get_embedding(expanded_query)

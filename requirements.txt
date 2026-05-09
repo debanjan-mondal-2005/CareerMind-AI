@@ -20,3 +20,4 @@ numpy
 pyyaml
 resend
 watchdog
+Pillow

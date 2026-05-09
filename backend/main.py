@@ -152,13 +152,16 @@ async def broadcast_reloads():
 
 @app.on_event("startup")
 async def startup_event():
-    # Start the watchdog observer for frontend
-    frontend_path = str(PROJECT_ROOT / "frontend")
-    handler = LiveReloadHandler(reload_queue)
-    observer = Observer()
-    observer.schedule(handler, frontend_path, recursive=True)
-    observer.start()
-    app.state.observer = observer
+    # Start the watchdog observer for frontend (dev only, safe to skip on Render)
+    try:
+        frontend_path = str(PROJECT_ROOT / "frontend")
+        handler = LiveReloadHandler(reload_queue)
+        observer = Observer()
+        observer.schedule(handler, frontend_path, recursive=True)
+        observer.start()
+        app.state.observer = observer
+    except Exception as e:
+        print(f"Live reload watcher not started (expected on Render): {e}")
     # Start the broadcaster task
     asyncio.create_task(broadcast_reloads())
 
@@ -701,14 +704,13 @@ def generate_image(request: ImageGenerationRequest):
     result = agent.generate_image(prompt=request.prompt, output_dir=IMAGE_UPLOAD_DIR)
     if not result["success"]:
         return result
-    image_url = f"http://localhost:8000/generated-images/{result['filename']}"
+    # Use the cloud URL if available, otherwise use the relative path
+    image_url = result.get("url", f"/generated-images/{result['filename']}")
     return {
         "success": True,
         "message": "Image generated successfully.",
         "image_url": image_url,
-        "filename": result["filename"],
-        "model": result["model"],
-        "provider": result["provider"]
+        "filename": result["filename"]
     }
 
 # ----------------------------------------------------------------------
