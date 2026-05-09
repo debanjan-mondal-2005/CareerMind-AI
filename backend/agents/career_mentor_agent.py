@@ -78,23 +78,24 @@ Answer:"""
         context = "\n\n".join([c["text"] for c in context_chunks])
         profile_text = self.format_student_profile(student_profile) if student_profile else "Not available"
         
-        return f"""You are CareerMind AI, a precise career mentor. Answer the student's question using the Student Profile and Context below.
-
+        return f"""You are CareerMind AI, a helpful and very concise career mentor.
+        
 Student Profile:
 {profile_text}
 
-Context from Document:
+Context from Uploaded Document:
 {context}
 
-Question: {user_question}
+Goal: Answer the student's question accurately using the Profile and Document Context.
 
 Instructions:
-1. If the answer is present in the document context or student profile, provide it directly and concisely.
-2. Do NOT summarize the entire context; only answer the specific question asked.
-3. If the information is not present in either, respond ONLY with "NOT_FOUND_IN_CONTEXT".
-4. Be direct. If asked for a name, just give the name.
-5. DO NOT include "Student Profile", "Context from Document", or "Instructions" in your final response. Just give the answer.
+1. Be extremely direct and concise. If asked for a specific fact (like CGPA or University), just provide that fact.
+2. If the answer is in the document, use it.
+3. If the answer is NOT in the document but you can infer it from the profile or general knowledge (for general questions), answer it.
+4. Do NOT use polite fillers like "Hello!", "I'm here to support you", etc. unless it's a greeting.
+5. If you absolutely cannot find or infer the answer, say "I couldn't find that specific detail in your documents."
 
+Question: {user_question}
 Answer:"""
 
     def _answer_from_context(self, user_question, context_chunks, student_profile=None):
@@ -237,11 +238,40 @@ Answer:"""
             try:
                 from document_ai.pdf_reader import extract_text_from_pdf
                 pdf_text = extract_text_from_pdf(self.current_pdf)
-                keywords = [w.strip("?,.!") for w in user_question.lower().split() if len(w) > 3]
-                relevant_lines = [l for l in pdf_text.split('\n') if any(kw in l.lower() for kw in keywords)]
+                
+                # Enhanced keyword search with synonyms
+                query_lower = user_question.lower()
+                search_keywords = [w.strip("?,.!") for w in query_lower.split() if len(w) > 2]
+                
+                # Add common synonyms for better extraction
+                synonyms = {
+                    "cgpa": ["gpa", "marks", "percentage", "result", "grade", "pointer", "academic"],
+                    "university": ["college", "institute", "school", "education", "lpu"],
+                    "project": ["work", "experience", "developed", "built", "assignment"],
+                    "skills": ["proficient", "knowledge", "expertise", "technical", "languages"]
+                }
+                
+                expanded_keywords = set(search_keywords)
+                for k, syns in synonyms.items():
+                    if k in query_lower:
+                        expanded_keywords.update(syns)
+                
+                relevant_lines = []
+                lines = pdf_text.split('\n')
+                for i, line in enumerate(lines):
+                    line_lower = line.lower()
+                    if any(kw in line_lower for kw in expanded_keywords):
+                        # Add current line and surrounding lines for context
+                        start = max(0, i - 1)
+                        end = min(len(lines), i + 2)
+                        relevant_lines.append("\n".join(lines[start:end]))
+                
                 if relevant_lines:
-                    pdf_chunks = (pdf_chunks or []) + [{"text": "\n".join(relevant_lines[:10]), "score": 1.0}]
-            except: pass
+                    # Combine and take unique blocks
+                    unique_context = "\n---\n".join(list(set(relevant_lines))[:15])
+                    pdf_chunks = (pdf_chunks or []) + [{"text": unique_context, "score": 1.2}]
+            except Exception as e:
+                print(f"PDF local search error: {e}")
 
         # 2. RAG Search
         rag_chunks = retrieve_relevant_chunks(user_question, top_k=3)

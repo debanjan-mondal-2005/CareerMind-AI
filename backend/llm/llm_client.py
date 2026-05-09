@@ -12,7 +12,7 @@ class LLMClient:
         self.model = os.getenv("GROQ_MODEL", "llama3-8b-8192")
         self.client = Groq(api_key=api_key)
 
-    def generate_response(self, prompt: str, max_tokens: int = 1024, temperature: float = 0.3) -> str:
+    def generate_response(self, prompt: str, max_tokens: int = 1024, temperature: float = 0.1) -> str:
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -24,7 +24,7 @@ class LLMClient:
         except Exception as e:
             return f"LLM error: {str(e)}"
 
-    def stream_response(self, prompt: str, max_tokens: int = 1024, temperature: float = 0.3):
+    def stream_response(self, prompt: str, max_tokens: int = 1024, temperature: float = 0.1):
         try:
             stream = self.client.chat.completions.create(
                 model=self.model,
