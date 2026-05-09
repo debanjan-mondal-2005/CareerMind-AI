@@ -105,10 +105,11 @@ def hash_password(password):
 
 def generate_student_key(first_name):
     year = datetime.now().year
+    prefix = first_name[0].upper() if first_name else "S"
     db = SessionLocal()
     while True:
         random_number = random.randint(1, 9999)
-        student_key = f"D{year}-{random_number:04d}"
+        student_key = f"{prefix}{year}-{random_number:04d}"
         exists = db.query(Student).filter(Student.student_key == student_key).first()
         if not exists:
             db.close()

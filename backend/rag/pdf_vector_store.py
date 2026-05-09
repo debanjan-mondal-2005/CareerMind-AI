@@ -39,7 +39,7 @@ def cosine_similarity(vec1, vec2):
         return 0
     return dot / (norm1 * norm2)
 
-def chunk_text(text, chunk_size=400, overlap=80):
+def chunk_text(text, chunk_size=800, overlap=150):
     chunks = []
     start = 0
     while start < len(text):

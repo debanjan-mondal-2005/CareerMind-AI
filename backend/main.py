@@ -285,9 +285,9 @@ def is_simple_chat_question(question):
     if q in greetings:
         return True
     
-    # If it's a "What is" or "Who is" or "How to", it's NOT a simple chat
-    if q.startswith(("what is", "who is", "how to", "tell me", "explain")):
-        return False
+    identity_keywords = ["who are you", "what is this", "what are we", "who developed", "who made", "about you"]
+    if any(kw in q for kw in identity_keywords):
+        return False # Pass to AI Agent for professional identity answer
 
     if len(q.split()) <= 2 and not is_career_related_question(q):
         return True
