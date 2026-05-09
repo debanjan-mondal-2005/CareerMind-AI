@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+# pyrefly: ignore [missing-import]
 from tavily import TavilyClient
 
 from llm.llm_client import LLMClient
@@ -10,12 +11,13 @@ class GoalAwareWebAgent:
     def __init__(self):
         load_dotenv()
 
+        self.web_client = None
         api_key = os.getenv("TAVILY_API_KEY")
 
-        if not api_key:
-            raise ValueError("TAVILY_API_KEY not found. Please check your .env file.")
-
-        self.web_client = TavilyClient(api_key=api_key)
+        if api_key:
+            self.web_client = TavilyClient(api_key=api_key)
+        else:
+            print("⚠️ TAVILY_API_KEY not found. Web search will be disabled for this agent.")
         self.llm = LLMClient()
 
     def build_goal_search_query(self, student_profile, user_question):
@@ -37,15 +39,17 @@ class GoalAwareWebAgent:
 
     def search_web(self, query, max_results=5):
         try:
-            response = self.web_client.search(
-                query=query,
-                search_depth="advanced",
-                max_results=max_results,
-                include_answer=False,
-                include_raw_content=False
-            )
-
-            results = response.get("results", [])
+            if self.web_client:
+                response = self.web_client.search(
+                    query=query,
+                    search_depth="advanced",
+                    max_results=max_results,
+                    include_answer=False,
+                    include_raw_content=False
+                )
+                results = response.get("results", [])
+            else:
+                results = []
 
             cleaned_results = []
 

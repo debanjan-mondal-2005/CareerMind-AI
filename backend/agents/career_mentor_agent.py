@@ -50,6 +50,9 @@ class CareerMentorAgent:
         
         system_prompt = f"""You are CareerMind AI, a professional and VERY CONCISE career mentor.
         
+IMPORTANT: The student has just uploaded a document (CV/Assignment/PDF). 
+Your priority is to answer questions about this document using the context below.
+
 Student Profile (Current Facts):
 {profile_text}
 
@@ -112,12 +115,25 @@ RULES:
         # 1. PDF Search
         pdf_chunks = []
         if self.current_pdf:
-            pdf_chunks = search_pdf_vector_db(self.student_id, user_question, top_k=5, threshold=0.15)
+            # A. Semantic Search
+            pdf_chunks = search_pdf_vector_db(self.student_id, user_question, top_k=5, threshold=0.1)
+            
             try:
                 from document_ai.pdf_reader import extract_text_from_pdf
                 pdf_text = extract_text_from_pdf(self.current_pdf)
                 
                 query_lower = user_question.lower()
+                
+                # B. General Document Question Detection (e.g., "What is this PDF about?")
+                doc_keywords = ["about this pdf", "summarize", "what is this", "tell me about this", "extract", "contain", "pdf about"]
+                is_general_doc_q = any(kw in query_lower for kw in doc_keywords)
+                
+                if is_general_doc_q or not pdf_chunks:
+                    # Add a summary chunk (first 2000 chars) for general overview
+                    summary_context = pdf_text[:2500]
+                    pdf_chunks.append({"text": f"[DOCUMENT OVERVIEW]:\n{summary_context}", "score": 1.5})
+                
+                # C. Enhanced keyword search with synonyms
                 search_keywords = [w.strip("?,.!") for w in query_lower.split() if len(w) > 2]
                 
                 synonyms = {

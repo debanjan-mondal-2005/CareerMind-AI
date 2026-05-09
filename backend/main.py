@@ -160,10 +160,19 @@ async def broadcast_reloads():
 
 @app.on_event("startup")
 async def startup_event():
-    # 1. Initialize DB (non-blocking task)
+    # 1. Initialize DB (Blocking to ensure tables exist before first request)
+    try:
+        print("Initializing database tables...")
+        from database.db import create_tables
+        create_tables()
+        print("✅ Database ready.")
+    except Exception as e:
+        print(f"❌ Database initialization failed: {e}")
+
+    # 2. Log environment status (Non-blocking)
     asyncio.create_task(init_db_task())
 
-    # 2. Start the watchdog observer for frontend (dev only, safe to skip on Render)
+    # 3. Start the watchdog observer for frontend (dev only, safe to skip on Render)
     if not os.getenv("RENDER"):
         try:
             frontend_path = str(PROJECT_ROOT / "frontend")
@@ -235,8 +244,6 @@ class ProfileRequest(BaseModel):
 # -----------------------------
 # Helper Functions
 # -----------------------------
-
-# Removed redundant get_student_profile (now in db.py)
 
 def authenticate_student(student_key, password):
     login_result = login_student(student_key, password)
@@ -352,6 +359,7 @@ def health_check():
         }
     }
     try:
+        # pyrefly: ignore [missing-import]
         from sqlalchemy import text
         from database.db import SessionLocal
         db = SessionLocal()
@@ -496,24 +504,14 @@ def smart_chat(request: CareerChatRequest):
         return {"success": False, "message": "Student profile not found."}
 
     question = request.question.strip()
-    student_name = get_student_full_name(student)
 
-    # 1. Main AI Agent (CareerMentorAgent)
-    # This handles PDF Search, Knowledge Base, and Web Search (Tavily) fallback.
+    # Main AI Agent (CareerMentorAgent)
     agent = CareerMentorAgent()
     agent.set_student_id(student["id"])
     pdf_data = PDF_MEMORY.get(student["id"])
     if pdf_data:
         agent.set_current_pdf(pdf_data["path"])
     
-    result = agent.answer_question(profile, question)
-    
-    if result.get("type") == "image":
-        return {
-            "success": True,
-            "route": "image_generation",
-            **result
-        }
     result = agent.answer_question(profile, question)
     
     if is_valid_ai_response(result.get("answer", "")):
@@ -531,28 +529,6 @@ def smart_chat(request: CareerChatRequest):
         "route": "career_mentor_agent",
         **result
     }
-
-    # 3. Normal career question -> CareerMentorAgent
-    agent = CareerMentorAgent()
-    agent.set_student_id(student["id"])
-    pdf_data = PDF_MEMORY.get(student["id"])
-    if pdf_data:
-        agent.set_current_pdf(pdf_data["path"])
-    result = agent.answer_question(profile, question)
-
-    if is_valid_ai_response(result.get("answer", "")):
-        try:
-            save_chat_history(
-                student_id=student["id"],
-                user_message=question,
-                ai_response=result.get("answer", ""),
-                sources_used=json.dumps({
-                    "route": "local_rag_gemini",
-                    "sources": result.get("sources", [])
-                })
-            )
-        except Exception as e:
-            result["warning"] = f"Answer generated but chat history not saved: {str(e)}"
 
     return {
         "success": True,
@@ -773,23 +749,21 @@ async def smart_chat_stream(request: CareerChatRequest):
         agent.set_current_pdf(pdf_data["path"])
     
     async def token_generator():
+        full_answer = ""
         try:
             for token in agent.stream_answer_question(profile, question):
+                full_answer += token
                 yield token
+            
+            # Save to SQL Database after completion
+            if is_valid_ai_response(full_answer):
+                save_chat_history(
+                    student_id=student["id"],
+                    user_message=question,
+                    ai_response=full_answer,
+                    sources_used="[]"
+                )
         except Exception as e:
             yield f"\n\n⚠️ Error during streaming: {str(e)}"
-
-    return StreamingResponse(token_generator(), media_type="text/plain")
-
-    # Normal career question -> streaming
-    agent = CareerMentorAgent()
-    agent.set_student_id(student["id"])
-    pdf_data = PDF_MEMORY.get(student["id"])
-    if pdf_data:
-        agent.set_current_pdf(pdf_data["path"])
-
-    async def token_generator():
-        for token in agent.stream_answer_question(profile, question):
-            yield token
 
     return StreamingResponse(token_generator(), media_type="text/plain")
