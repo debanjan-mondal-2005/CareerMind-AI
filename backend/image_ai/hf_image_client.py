@@ -50,6 +50,7 @@ class HFImageClient:
             # 2. Try Cloud Upload (Supabase)
             if self.supabase_url and self.supabase_key:
                 try:
+                    # pyrefly: ignore [missing-import]
                     from supabase import create_client
                     supabase_client = create_client(self.supabase_url, self.supabase_key)
                     

@@ -540,7 +540,7 @@ function clearSession() {
     const input = document.getElementById("user-question");
     const welcomeScreen = document.getElementById("welcome-screen");
     const historyList = document.getElementById("chat-history-list");
-    
+
     if (outputArea) outputArea.innerHTML = "";
     if (input) input.value = "";
     if (welcomeScreen) welcomeScreen.classList.remove("hidden");
@@ -747,7 +747,6 @@ function appendLoadingMessage() {
     `;
     outputArea.appendChild(msg);
     setTimeout(() => msg.classList.remove("fade-in"), 400);
-    animateTypingDots(msg.querySelectorAll('.dot'));
     scrollToBottom(true);
     return loadingId;
 }
@@ -816,15 +815,6 @@ function appendAIImageMessage(text, imageUrl, sources = []) {
     scrollToBottom(true);
 }
 
-function animateTypingDots(dots) {
-    let step = 0;
-    setInterval(() => {
-        dots.forEach((dot, i) => {
-            dot.style.opacity = (i === step % 3) ? "1" : "0.3";
-        });
-        step++;
-    }, 350);
-}
 
 function shakeInputBox() {
     const input = document.getElementById("user-question");
@@ -1064,6 +1054,28 @@ async function askSmartAgent() {
         }
 
         saveChatHistories();
+
+        // 🆕 AUTO-SAVE TO SIDEBAR: If this is a new chat, commit it to history list immediately
+        if (!currentChatId && currentChatMessages.length >= 2) {
+            const firstUserMsg = currentChatMessages.find(m => m.type === 'user');
+            const title = firstUserMsg ? firstUserMsg.content.substring(0, 50) : "New chat";
+            currentChatId = Date.now().toString();
+            const newHistory = {
+                id: currentChatId,
+                title: title,
+                messages: JSON.parse(JSON.stringify(currentChatMessages))
+            };
+            chatHistories.push(newHistory);
+            saveChatHistories();
+            renderHistoryList();
+        } else if (currentChatId) {
+            // Update existing history entry
+            const chatIdx = chatHistories.findIndex(c => c.id === currentChatId);
+            if (chatIdx !== -1) {
+                chatHistories[chatIdx].messages = JSON.parse(JSON.stringify(currentChatMessages));
+                saveChatHistories();
+            }
+        }
     } catch (error) {
         console.error("Streaming error:", error);
 

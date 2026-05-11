@@ -813,6 +813,7 @@ body {
     line-height: 1.6;
     word-break: break-word;
     position: relative;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .user .message-bubble {
@@ -827,6 +828,45 @@ body {
     color: #e2e8f0;
     border: 1px solid var(--border);
     border-bottom-left-radius: 4px;
+}
+
+/* Typing Dots Animation */
+.typing-dots {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    padding: 4px 0;
+}
+
+.typing-dots .dot {
+    width: 6px;
+    height: 6px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    display: inline-block;
+    animation: typingBounce 1.4s infinite ease-in-out both;
+    opacity: 0.4;
+}
+
+.typing-dots .dot:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.typing-dots .dot:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes typingBounce {
+    0%, 80%, 100% { 
+        transform: scale(0.6);
+        opacity: 0.4;
+    } 
+    40% { 
+        transform: scale(1.1);
+        opacity: 1;
+        background: var(--accent);
+    }
 }
 
 .message-sender {
