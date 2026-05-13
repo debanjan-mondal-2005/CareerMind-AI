@@ -127,16 +127,14 @@ def get_db():
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-def generate_student_key(first_name):
+def generate_student_key(first_name, db):
     year = datetime.now().year
     prefix = first_name[0].upper() if first_name else "S"
-    db = SessionLocal()
     while True:
         random_number = random.randint(1, 9999)
         student_key = f"{prefix}{year}-{random_number:04d}"
         exists = db.query(Student).filter(Student.student_key == student_key).first()
         if not exists:
-            db.close()
             return student_key
 
 # --- Business Logic Functions (API Compatible) ---
@@ -147,7 +145,7 @@ def register_student(first_name, middle_name, last_name, email, password):
 
     db = SessionLocal()
     try:
-        student_key = generate_student_key(first_name)
+        student_key = generate_student_key(first_name, db)
         new_student = Student(
             student_key=student_key,
             first_name=first_name,
