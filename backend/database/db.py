@@ -31,6 +31,7 @@ else:
 # Initialize SQLAlchemy with resilience for Cloud/Render
 if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(DATABASE_URL)
+    print(f"📁 Using Local SQLite Database at: {DATABASE_URL}")
 else:
     # Add timeout and pool recycling for Supabase/Render
     engine = create_engine(
@@ -42,6 +43,8 @@ else:
             "sslmode": "require"
         }
     )
+    print("📡 Connected to Cloud Database (Supabase/PostgreSQL)")
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -159,7 +162,11 @@ def register_student(first_name, middle_name, last_name, email, password):
         return {"success": True, "message": "Registered successfully", "student_key": student_key}
     except Exception as e:
         db.rollback()
-        return {"success": False, "message": "Email already registered or connection error"}
+        error_msg = str(e)
+        print(f"Registration Error: {error_msg}")
+        if "UNIQUE constraint failed" in error_msg or "duplicate key value" in error_msg.lower():
+            return {"success": False, "message": "This email is already registered."}
+        return {"success": False, "message": f"Connection error: {error_msg[:100]}"}
     finally:
         db.close()
 
@@ -190,6 +197,9 @@ def login_student(student_key, password):
                 }
             }
         return {"success": False, "message": "Invalid credentials"}
+    except Exception as e:
+        print(f"Login Error: {str(e)}")
+        return {"success": False, "message": f"Login connection error: {str(e)[:100]}"}
     finally:
         db.close()
 

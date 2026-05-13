@@ -68,6 +68,8 @@ Powered by **Llama 3 via Groq Cloud**, the platform delivers:
 * Learning roadmaps
 * Skill gap analysis
 * Real-time career recommendations
+* **Hierarchical Academic Onboarding**: Smart dependency-based flow (Stream → Degree → Specialization) for precise profile mapping.
+* **Dual-Track Support**: Tailored experiences for both School and College students with custom data collection.
 
 ---
 
@@ -158,6 +160,7 @@ CareerMind AI uses a modular AI agent ecosystem:
 | Web Intelligence Agent | Real-time industry search       |
 | RAG Retrieval Agent    | Semantic document retrieval     |
 | Image Agent            | Career visualization generation |
+| Profile Agent          | Structured academic profiling   |
 
 ---
 
@@ -176,10 +179,10 @@ CareerMind AI uses a modular AI agent ecosystem:
 
 ### Embedding Features:
 
-* Cosine similarity search
 * Semantic ranking
 * Top-k retrieval
 * Context optimization
+* **Domain-Specific Knowledge Base**: 13+ specialized TXT archives covering AI, DevOps, Backend, Cybersecurity, and more for hyper-accurate mentorship.
 
 ---
 
@@ -373,6 +376,7 @@ CareerMind AI is designed with modern security practices:
 * Secure API handling
 * Persistent onboarding verification
 * Cross-device session synchronization
+* **Production Hardening**: Removed development reset tools, secured health endpoints, and strictly enforced onboarding states.
 
 ### Planned Security Enhancements
 
