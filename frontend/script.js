@@ -761,9 +761,9 @@ async function registerStudent() {
             clearSession(); // Wipe any old data before starting new account
             studentFirstName = firstName;
             localStorage.setItem("student_first_name", studentFirstName);
-            showSuccess(resultBox, "Account created. Your student key has been sent to your email. Now complete your profile.");
+            showSuccess(resultBox, "Account created successfully! Your Student Key has been sent to your email. Please login to continue.");
             safeClearRegistrationForm();
-            setTimeout(() => showStudentTypeSelection(data.registration.student_key, password), 1300);
+            setTimeout(() => showLogin(), 2000);
         } else {
             showError(resultBox, data.registration?.message || "Registration failed. Please try again.");
         }
@@ -820,10 +820,18 @@ async function loginStudent() {
             // Reload user-specific history
             loadChatHistories();
 
-            // Enforce onboarding check - Always show selection if not finished
+            // Enforce onboarding check - Intelligent routing
             if (data.onboarding_completed === false) {
-                showSuccess(resultBox, "Login successful. Please complete your profile first.");
-                setTimeout(() => showStudentTypeSelection(studentKey, studentPassword), 1200);
+                if (data.student && data.student.student_type === 'school') {
+                    showSuccess(resultBox, "Login successful. Continuing school profile...");
+                    setTimeout(() => showSchoolOnboarding(studentKey, studentPassword), 1200);
+                } else if (data.student && data.student.student_type === 'college') {
+                    showSuccess(resultBox, "Login successful. Continuing college profile...");
+                    setTimeout(() => showOnboarding(studentKey, studentPassword), 1200);
+                } else {
+                    showSuccess(resultBox, "Login successful. Please complete your profile first.");
+                    setTimeout(() => showStudentTypeSelection(studentKey, studentPassword), 1200);
+                }
             } else {
                 showSuccess(resultBox, "Login successful. Redirecting...");
                 setTimeout(() => showDashboard(), 1000);
@@ -865,6 +873,26 @@ function clearSession() {
     if (input) input.value = "";
     if (welcomeScreen) welcomeScreen.classList.remove("hidden");
     if (historyList) historyList.innerHTML = "";
+
+    // Clear all onboarding forms
+    const forms = ["onboarding-form", "school-onboarding-form"];
+    forms.forEach(formId => {
+        const form = document.getElementById(formId);
+        if (form) {
+            form.reset();
+            // Also hide any "Other" inputs
+            const others = form.querySelectorAll('[id$="-other"]');
+            others.forEach(o => o.style.display = "none");
+        }
+    });
+    
+    // Clear type selection cache if any
+    const streamOther = document.getElementById("co-stream-other");
+    if (streamOther) streamOther.style.display = "none";
+    const degreeOther = document.getElementById("co-degree-other");
+    if (degreeOther) degreeOther.style.display = "none";
+    const specOther = document.getElementById("co-specialization-other");
+    if (specOther) specOther.style.display = "none";
 }
 
 // ---------- UI utilities ----------
