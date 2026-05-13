@@ -19,13 +19,15 @@ You are a Profile Builder Agent for an AI Career Mentor system.
 Your task is to convert student onboarding answers into a clean structured JSON profile.
 
 Extract the following fields:
-1. degree
-2. semester
-3. specialization
-4. career_goal
-5. skills
-6. weak_areas
-7. daily_study_hours
+1. full_name
+2. stream
+2. degree
+3. semester
+4. specialization
+5. career_goal
+6. skills
+7. weak_areas
+8. daily_study_hours
 
 Important rules:
 - Return only valid JSON.
@@ -43,6 +45,8 @@ Student onboarding answers:
 Return JSON in this exact format:
 
 {{
+  "full_name": "",
+  "stream": "",
   "degree": "",
   "semester": "",
   "specialization": "",

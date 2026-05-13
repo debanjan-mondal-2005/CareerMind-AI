@@ -55,6 +55,7 @@ class Student(Base):
     last_name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
+    student_type = Column(String, nullable=True) # 'school' or 'college'
     created_at = Column(String, nullable=False)
 
 class OnboardingAnswer(Base):
@@ -69,6 +70,8 @@ class StudentProfile(Base):
     __tablename__ = "student_profiles"
     id = Column(Integer, primary_key=True, index=True)
     student_id = Column(Integer, ForeignKey("students.id"), unique=True, nullable=False)
+    full_name = Column(String)
+    stream = Column(String)
     degree = Column(String)
     semester = Column(String)
     specialization = Column(String)
@@ -76,6 +79,24 @@ class StudentProfile(Base):
     skills = Column(Text)
     weak_areas = Column(Text)
     daily_study_hours = Column(String)
+    created_at = Column(String, nullable=False)
+
+class SchoolStudentProfile(Base):
+    __tablename__ = "school_student_profiles"
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("students.id"), unique=True, nullable=False)
+    full_name = Column(String)
+    grade_class = Column(String)
+    board = Column(String)
+    stream_interest = Column(String)
+    career_goal = Column(String)
+    favorite_subjects = Column(Text)
+    weak_subjects = Column(Text)
+    skills_interested = Column(Text)
+    current_skill_level = Column(String)
+    learning_style = Column(String)
+    future_target = Column(String)
+    notes = Column(Text)
     created_at = Column(String, nullable=False)
 
 class ChatHistory(Base):
@@ -149,16 +170,23 @@ def login_student(student_key, password):
         student = db.query(Student).filter(Student.student_key == student_key, Student.password_hash == pwd_hash).first()
         
         if student:
-            onboarding_count = db.query(OnboardingAnswer).filter(OnboardingAnswer.student_id == student.id).count()
+            if student.student_type == 'school':
+                onboarding_completed = db.query(SchoolStudentProfile).filter(SchoolStudentProfile.student_id == student.id).first() is not None
+            elif student.student_type == 'college':
+                onboarding_completed = db.query(StudentProfile).filter(StudentProfile.student_id == student.id).first() is not None
+            else:
+                onboarding_completed = False
+
             return {
                 "success": True,
-                "onboarding_completed": onboarding_count > 0,
+                "onboarding_completed": onboarding_completed,
                 "student": {
                     "id": student.id,
                     "student_key": student.student_key,
                     "first_name": student.first_name,
                     "last_name": student.last_name,
-                    "email": student.email
+                    "email": student.email,
+                    "student_type": student.student_type
                 }
             }
         return {"success": False, "message": "Invalid credentials"}
@@ -191,7 +219,6 @@ def get_student_profile_data(student_id):
     """Retrieve full student profile and name data (Hybrid compatible)"""
     db = SessionLocal()
     try:
-        profile = db.query(StudentProfile).filter(StudentProfile.student_id == student_id).first()
         student = db.query(Student).filter(Student.id == student_id).first()
         
         if not student:
@@ -200,43 +227,140 @@ def get_student_profile_data(student_id):
         full_name = f"{student.first_name} {student.middle_name or ''} {student.last_name}".strip()
         full_name = " ".join(full_name.split())
         
-        if not profile:
-            return {"full_name": full_name}
-
-        return {
-            "full_name": full_name,
-            "degree": profile.degree,
-            "semester": profile.semester,
-            "specialization": profile.specialization,
-            "career_goal": profile.career_goal,
-            "skills": profile.skills,
-            "weak_areas": profile.weak_areas,
-            "daily_study_hours": profile.daily_study_hours
-        }
+        if student.student_type == 'school':
+            profile = db.query(SchoolStudentProfile).filter(SchoolStudentProfile.student_id == student_id).first()
+            if not profile:
+                return {"full_name": full_name, "student_type": "school"}
+            return {
+                "full_name": profile.full_name or full_name,
+                "student_type": "school",
+                "grade_class": profile.grade_class,
+                "board": profile.board,
+                "stream": profile.stream_interest,
+                "career_goal": profile.career_goal,
+                "favorite_subjects": profile.favorite_subjects,
+                "weak_subjects": profile.weak_subjects,
+                "skills": profile.skills_interested,
+                "skill_level": profile.current_skill_level,
+                "learning_style": profile.learning_style,
+                "future_target": profile.future_target,
+                "notes": profile.notes
+            }
+        else:
+            profile = db.query(StudentProfile).filter(StudentProfile.student_id == student_id).first()
+            if not profile:
+                return {"full_name": full_name, "student_type": "college"}
+            return {
+                "full_name": profile.full_name or full_name,
+                "student_type": "college",
+                "stream": profile.stream,
+                "degree": profile.degree,
+                "semester": profile.semester,
+                "specialization": profile.specialization,
+                "career_goal": profile.career_goal,
+                "skills": profile.skills,
+                "weak_areas": profile.weak_areas,
+                "daily_study_hours": profile.daily_study_hours
+            }
     finally:
         db.close()
 
-def save_student_profile(student_id, degree, semester, specialization, career_goal, skills, weak_areas, daily_study_hours):
+def save_student_profile(student_id, full_name, stream, degree, semester, specialization, career_goal, skills, weak_areas, daily_study_hours):
     db = SessionLocal()
     try:
         profile = db.query(StudentProfile).filter(StudentProfile.student_id == student_id).first()
         if not profile:
-            profile = StudentProfile(student_id=student_id)
+            profile = StudentProfile(
+                student_id=student_id,
+                full_name=full_name,
+                stream=stream,
+                degree=degree,
+                semester=semester,
+                specialization=specialization,
+                career_goal=career_goal,
+                skills=skills,
+                weak_areas=weak_areas,
+                daily_study_hours=daily_study_hours,
+                created_at=datetime.now().isoformat()
+            )
+            db.add(profile)
+        else:
+            profile.full_name = full_name
+            profile.stream = stream
+            profile.degree = degree
+            profile.semester = semester
+            profile.specialization = specialization
+            profile.career_goal = career_goal
+            profile.skills = skills
+            profile.weak_areas = weak_areas
+            profile.daily_study_hours = daily_study_hours
+        db.commit()
+        return {"success": True}
+    finally:
+        db.close()
+
+def set_student_type(student_id, student_type):
+    db = SessionLocal()
+    try:
+        student = db.query(Student).filter(Student.id == student_id).first()
+        if student:
+            student.student_type = student_type
+            db.commit()
+            return {"success": True}
+        return {"success": False, "message": "Student not found"}
+    finally:
+        db.close()
+
+def save_school_student_profile(student_id, full_name, grade_class, board, stream_interest, career_goal, favorite_subjects, weak_subjects, skills_interested, current_skill_level, learning_style, future_target, notes):
+    db = SessionLocal()
+    try:
+        profile = db.query(SchoolStudentProfile).filter(SchoolStudentProfile.student_id == student_id).first()
+        if not profile:
+            profile = SchoolStudentProfile(student_id=student_id)
             db.add(profile)
         
-        profile.degree = degree
-        profile.semester = semester
-        profile.specialization = specialization
+        profile.full_name = full_name
+        profile.grade_class = grade_class
+        profile.board = board
+        profile.stream_interest = stream_interest
         profile.career_goal = career_goal
-        profile.skills = skills
-        profile.weak_areas = weak_areas
-        profile.daily_study_hours = daily_study_hours
+        profile.favorite_subjects = favorite_subjects
+        profile.weak_subjects = weak_subjects
+        profile.skills_interested = skills_interested
+        profile.current_skill_level = current_skill_level
+        profile.learning_style = learning_style
+        profile.future_target = future_target
+        profile.notes = notes
         profile.created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         db.commit()
         return {"success": True}
     finally:
         db.close()
+
+def get_school_student_profile_data(student_id):
+    db = SessionLocal()
+    try:
+        profile = db.query(SchoolStudentProfile).filter(SchoolStudentProfile.student_id == student_id).first()
+        if not profile:
+            return None
+        return {
+            "full_name": profile.full_name,
+            "grade_class": profile.grade_class,
+            "board": profile.board,
+            "stream_interest": profile.stream_interest,
+            "career_goal": profile.career_goal,
+            "favorite_subjects": profile.favorite_subjects,
+            "weak_subjects": profile.weak_subjects,
+            "skills_interested": profile.skills_interested,
+            "current_skill_level": profile.current_skill_level,
+            "learning_style": profile.learning_style,
+            "future_target": profile.future_target,
+            "notes": profile.notes
+        }
+    finally:
+        db.close()
+
 
 def save_chat_history(student_id, user_message, ai_response, sources_used):
     db = SessionLocal()

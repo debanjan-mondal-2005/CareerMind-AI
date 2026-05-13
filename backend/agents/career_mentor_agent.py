@@ -230,8 +230,26 @@ RULES:
             ).start()
 
     def format_student_profile(self, profile):
-        return f"""
+        if profile.get("student_type") == "school":
+            return f"""
 Name: {profile.get("full_name", "Student")}
+Student Type: School Student
+Class/Grade: {profile.get("grade_class", "")}
+Board: {profile.get("board", "")}
+Stream/Interest: {profile.get("stream_interest", "")}
+Career Goal: {profile.get("career_goal", "")}
+Favorite Subjects: {profile.get("favorite_subjects", "")}
+Weak Subjects: {profile.get("weak_subjects", "")}
+Skills Interested In: {profile.get("skills_interested", "")}
+Current Skill Level: {profile.get("current_skill_level", "")}
+Learning Style: {profile.get("learning_style", "")}
+Future Target (Exam/Goal): {profile.get("future_target", "")}
+Notes: {profile.get("notes", "")}
+"""
+        else:
+            return f"""
+Name: {profile.get("full_name", "Student")}
+Student Type: College Student
 Degree: {profile.get("degree", "")}
 Semester: {profile.get("semester", "")}
 Specialization: {profile.get("specialization", "")}

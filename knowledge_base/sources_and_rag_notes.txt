@@ -1,0 +1,29 @@
+# Sources and Reference Notes
+
+These files are generated as original study/RAG guidance text, not copied from copyrighted webpages.
+Use the links below as reputable references for checking and expanding the content.
+
+1. U.S. Bureau of Labor Statistics Occupational Outlook Handbook - Computer and IT Occupations:
+https://www.bls.gov/ooh/computer-and-information-technology/
+
+2. U.S. Bureau of Labor Statistics Occupational Outlook Handbook - Data Scientists:
+https://www.bls.gov/ooh/math/data-scientists.htm
+
+3. NIST Artificial Intelligence Risk Management Framework:
+https://www.nist.gov/itl/ai-risk-management-framework
+
+4. OWASP Foundation:
+https://owasp.org/
+
+5. Google Site Reliability Engineering Book:
+https://sre.google/sre-book/table-of-contents/
+
+6. Google SRE - Service Level Objectives:
+https://sre.google/sre-book/service-level-objectives/
+
+Suggested RAG ingestion steps:
+- Put these .txt files inside knowledge_base/
+- Run your vector DB builder script.
+- Use source file name and line range as metadata.
+- Keep chunks small enough for accurate retrieval.
+- Add your own project-specific files later, such as CareerMind features, authentication flow, onboarding flow, interview module, and assessment module.

@@ -7,12 +7,10 @@ import asyncio
 from pathlib import Path
 from typing import Optional, List
 
-# ---------- MUST be first: add backend folder to sys.path ----------
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Third-party imports
 # pyrefly: ignore [missing-import]
-from fastapi import FastAPI, UploadFile, File, Form, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, UploadFile, File, Form, WebSocket, WebSocketDisconnect, BackgroundTasks
 # pyrefly: ignore [missing-import]
 from fastapi.staticfiles import StaticFiles
 # pyrefly: ignore [missing-import]
@@ -30,9 +28,6 @@ from llm.hf_client import HFClient
 from document_ai.pdf_reader import extract_text_from_pdf
 from document_ai.pdf_qa_agent import PDFQAAgent
 
-# -----------------------------
-# App & CORS
-# -----------------------------
 app = FastAPI(
     title="CareerMind AI API",
     description="Multi-Agent RAG-Based Career Mentor API",
@@ -106,10 +101,7 @@ async def init_db_task():
     except Exception as e:
         print(f"Database initialization failed: {e}")
 
-# -----------------------------
 # Live Reload (WebSocket + Watchdog)
-# -----------------------------
-# (Imports moved to the top section)
 
 class LiveReloadHandler(FileSystemEventHandler):
     def __init__(self, queue):
@@ -229,6 +221,27 @@ class OnboardingRequest(BaseModel):
     student_key: str
     password: str
     answers: List[OnboardingAnswerItem]
+
+class StudentTypeRequest(BaseModel):
+    student_key: str
+    password: str
+    student_type: str
+
+class SchoolOnboardingRequest(BaseModel):
+    student_key: str
+    password: str
+    full_name: str
+    grade_class: str
+    board: str
+    stream_interest: str
+    career_goal: str
+    favorite_subjects: str
+    weak_subjects: str
+    skills_interested: str
+    current_skill_level: str
+    learning_style: str
+    future_target: str
+    notes: Optional[str] = ""
 
 class ProfileRequest(BaseModel):
     student_key: str
@@ -362,11 +375,11 @@ def health_check():
     health = {
         "status": "healthy",
         "database": "unknown",
-        "env": {
-            "HF_TOKEN": bool(os.getenv("HF_TOKEN")),
-            "GROQ_API_KEY": bool(os.getenv("GROQ_API_KEY")),
-            "TAVILY_API_KEY": bool(os.getenv("TAVILY_API_KEY")),
-            "DATABASE_URL": bool(os.getenv("DATABASE_URL"))
+        "config": {
+            "HF_TOKEN_SET": bool(os.getenv("HF_TOKEN")),
+            "GROQ_API_KEY_SET": bool(os.getenv("GROQ_API_KEY")),
+            "TAVILY_API_KEY_SET": bool(os.getenv("TAVILY_API_KEY")),
+            "RESEND_API_KEY_SET": bool(os.getenv("RESEND_API_KEY"))
         }
     }
     try:
@@ -386,7 +399,7 @@ def health_check():
 # Register / Login / Onboarding / Profile
 # ----------------------------------------------------------------------
 @app.post("/register")
-def register(request: RegisterRequest):
+def register(request: RegisterRequest, background_tasks: BackgroundTasks):
     result = register_student(
         request.first_name,
         request.middle_name,
@@ -394,21 +407,22 @@ def register(request: RegisterRequest):
         request.email,
         request.password
     )
-    email_result = None
     if result["success"]:
-        email_result = send_registration_email(
+        # Send email in background to reduce user wait time
+        background_tasks.add_task(
+            send_registration_email,
             to_email=request.email,
             first_name=request.first_name,
             student_key=result["student_key"]
         )
-    return {"registration": result, "email": email_result}
+    return {"registration": result, "email": "Sent in background"}
 
 @app.post("/login")
 def login(request: LoginRequest):
     return login_student(request.student_key, request.password)
 
 @app.post("/onboarding")
-def save_onboarding(request: OnboardingRequest):
+def save_onboarding(request: OnboardingRequest, background_tasks: BackgroundTasks):
     student, login_result = authenticate_student(request.student_key, request.password)
     if not student:
         return login_result
@@ -419,29 +433,76 @@ def save_onboarding(request: OnboardingRequest):
                 question=item.question,
                 answer=item.answer
             )
-        try:
-            onboarding_answers = get_onboarding_answers(student["id"])
-            if onboarding_answers:
-                answers_list = [{"question": row["question"], "answer": row["answer"]} for row in onboarding_answers]
-                profile_agent = ProfileBuilderAgent()
-                profile_result = profile_agent.build_profile(answers_list)
-                if profile_result["success"]:
-                    profile = profile_result["profile"]
-                    save_student_profile(
-                        student_id=student["id"],
-                        degree=profile.get("degree", ""),
-                        semester=profile.get("semester", ""),
-                        specialization=profile.get("specialization", ""),
-                        career_goal=profile.get("career_goal", ""),
-                        skills=json.dumps(profile.get("skills", [])) if isinstance(profile.get("skills"), list) else profile.get("skills", ""),
-                        weak_areas=json.dumps(profile.get("weak_areas", [])) if isinstance(profile.get("weak_areas"), list) else profile.get("weak_areas", ""),
-                        daily_study_hours=profile.get("daily_study_hours", "")
-                    )
-        except Exception as profile_error:
-            print(f"Profile building error: {str(profile_error)}")
-        return {"success": True, "message": "Onboarding answers saved and profile built successfully"}
+        
+        # Build AI Profile in background to reduce user wait time
+        background_tasks.add_task(
+            process_ai_profile_background,
+            student_id=student["id"]
+        )
+        
+        return {"success": True, "message": "Onboarding answers saved successfully. AI Profile is being built."}
     except Exception as e:
         return {"success": False, "message": f"Error saving onboarding answers: {str(e)}"}
+
+def process_ai_profile_background(student_id: int):
+    """Helper function to build AI profile in the background."""
+    try:
+        onboarding_answers = get_onboarding_answers(student_id)
+        if onboarding_answers:
+            answers_list = [{"question": row["question"], "answer": row["answer"]} for row in onboarding_answers]
+            profile_agent = ProfileBuilderAgent()
+            profile_result = profile_agent.build_profile(answers_list)
+            if profile_result["success"]:
+                profile = profile_result["profile"]
+                save_student_profile(
+                    student_id=student_id,
+                    full_name=profile.get("full_name", ""),
+                    stream=profile.get("stream", ""),
+                    degree=profile.get("degree", ""),
+                    semester=profile.get("semester", ""),
+                    specialization=profile.get("specialization", ""),
+                    career_goal=profile.get("career_goal", ""),
+                    skills=json.dumps(profile.get("skills", [])) if isinstance(profile.get("skills"), list) else profile.get("skills", ""),
+                    weak_areas=json.dumps(profile.get("weak_areas", [])) if isinstance(profile.get("weak_areas"), list) else profile.get("weak_areas", ""),
+                    daily_study_hours=profile.get("daily_study_hours", "")
+                )
+    except Exception as e:
+        print(f"Background Profile Building Error: {e}")
+
+@app.post("/set-student-type")
+def set_student_type_endpoint(request: StudentTypeRequest):
+    student, login_result = authenticate_student(request.student_key, request.password)
+    if not student:
+        return login_result
+    from database.db import set_student_type
+    result = set_student_type(student["id"], request.student_type)
+    return result
+
+@app.post("/school-onboarding")
+def save_school_onboarding(request: SchoolOnboardingRequest):
+    student, login_result = authenticate_student(request.student_key, request.password)
+    if not student:
+        return login_result
+    from database.db import save_school_student_profile
+    try:
+        result = save_school_student_profile(
+            student_id=student["id"],
+            full_name=request.full_name,
+            grade_class=request.grade_class,
+            board=request.board,
+            stream_interest=request.stream_interest,
+            career_goal=request.career_goal,
+            favorite_subjects=request.favorite_subjects,
+            weak_subjects=request.weak_subjects,
+            skills_interested=request.skills_interested,
+            current_skill_level=request.current_skill_level,
+            learning_style=request.learning_style,
+            future_target=request.future_target,
+            notes=request.notes
+        )
+        return {"success": True, "message": "School onboarding completed successfully"}
+    except Exception as e:
+        return {"success": False, "message": f"Error saving school onboarding: {str(e)}"}
 
 @app.post("/save-profile")
 def save_profile(request: ProfileRequest):
@@ -541,12 +602,8 @@ def smart_chat(request: CareerChatRequest):
         **result
     }
 
-    return {
-        "success": True,
-        "route": "local_rag_gemini",
-        **result
-    }
-
+# ----------------------------------------------------------------------
+# Development / Testing Tools
 # ----------------------------------------------------------------------
 # Specialized Multi-Agent APIs (unchanged)
 # ----------------------------------------------------------------------

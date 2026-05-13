@@ -2,15 +2,15 @@ import os
 import json
 import sys
 from pathlib import Path
-
-# No need for dotenv or genai
 import numpy as np
 from huggingface_hub import InferenceClient
-
-# Add backend folder path (for possible imports)
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(PROJECT_ROOT / ".env")
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 KNOWLEDGE_BASE_DIR = PROJECT_ROOT / "knowledge_base"
 VECTOR_DB_PATH = PROJECT_ROOT / "backend" / "rag" / "vector_db.json"
 
@@ -71,7 +71,7 @@ def get_document_topic(source_name):
     else:
         return "Career guidance, skills, roadmap, projects, interview preparation"
 
-def chunk_text(text, chunk_size=400, overlap=80):
+def chunk_text(text, chunk_size=800, overlap=80):
     """Split text into overlapping chunks."""
     chunks = []
     start = 0

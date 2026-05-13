@@ -152,31 +152,51 @@ body {
 
 /* Auth Pages */
 .auth-card {
-    min-height: 100vh;
-    min-height: 100dvh;
-    background:
-        radial-gradient(circle at 0% 0%, rgba(139, 92, 246, 0.15), transparent 40%),
-        radial-gradient(circle at 100% 100%, rgba(59, 130, 246, 0.1), transparent 40%),
-        var(--bg-main);
     display: flex;
-    align-items: center;
     justify-content: center;
-    padding: 24px;
-    overflow-y: auto;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+    box-sizing: border-box;
+    overflow-y: auto; /* Allow scrolling on the card itself if needed */
 }
 
 .auth-box {
-    width: 100%;
-    max-width: 480px;
-    background: var(--bg-card);
-    border: 1px solid var(--glass-border);
+    background: rgba(23, 23, 26, 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 40px;
     border-radius: 24px;
-    padding: 24px 34px 22px;
+    width: 100%;
+    max-width: 450px;
     text-align: center;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    margin: auto; /* Center in flex container */
+    max-height: 90vh; /* Don't go outside the window */
+    overflow-y: auto; /* Internal scrolling for long forms */
     display: flex;
     flex-direction: column;
-    margin: auto;
+}
+
+/* Ensure dropdowns inside stay safe */
+select {
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    background-size: 15px;
+    padding-right: 40px !important;
+}
+
+.auth-box::-webkit-scrollbar {
+    width: 6px;
+}
+
+.auth-box::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
 }
 
 .auth-box.auto-height {
@@ -542,6 +562,30 @@ body {
     margin-top: auto;
     padding-top: 20px;
     border-top: 1px solid var(--border);
+}
+
+.btn-dev-reset {
+    width: 100%;
+    background: rgba(139, 92, 246, 0.05);
+    border: 1px dashed rgba(139, 92, 246, 0.3);
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    cursor: pointer;
+    font-weight: 500;
+    border-radius: 10px;
+    white-space: nowrap;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.btn-dev-reset:hover {
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--accent);
+    border-style: solid;
 }
 
 .btn-logout {

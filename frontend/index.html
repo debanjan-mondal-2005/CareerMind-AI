@@ -108,19 +108,242 @@
         </div>
     </section>
 
-    <!-- Onboarding Section -->
+    <!-- Student Type Selection Section -->
+    <section id="student-type-section" class="auth-card hidden">
+        <div class="auth-box auto-height animate-pop">
+            <div class="brand-mark">CM</div>
+            <h2>Welcome to CareerMind AI</h2>
+            <p class="auth-subtitle">To personalize your experience, please tell us about your current educational
+                journey.</p>
+
+            <div class="student-type-options"
+                style="display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
+                <button onclick="selectStudentType('school')" class="btn-primary glow-button"
+                    style="flex: 1; padding: 20px; font-size: 1.1rem; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                    <i class="fa-solid fa-school" style="font-size: 2rem;"></i>
+                    School Student
+                </button>
+                <button onclick="selectStudentType('college')" class="btn-primary glow-button"
+                    style="flex: 1; padding: 20px; font-size: 1.1rem; display: flex; flex-direction: column; align-items: center; gap: 10px; background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+                    <i class="fa-solid fa-graduation-cap" style="font-size: 2rem;"></i>
+                    College Student
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Onboarding Section (College) -->
     <section id="onboarding-section" class="auth-card hidden">
         <div class="auth-box auto-height animate-pop">
             <div class="brand-mark">CM</div>
-            <h2>Build Your Profile</h2>
+            <h2>College Student Profile</h2>
             <p class="auth-subtitle">CareerMind AI will personalize answers using this profile</p>
 
-            <form id="onboarding-form" onsubmit="event.preventDefault(); submitOnboarding();">
-                <div id="onboarding-questions-container"></div>
-                <button type="submit" class="btn-primary glow-button" id="onboarding-submit">Complete Setup</button>
+            <form id="onboarding-form" onsubmit="event.preventDefault(); submitOnboarding();" style="text-align: left;">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="co-fullname" required placeholder="E.g., John Doe">
+                </div>
+
+                <div class="form-group">
+                    <label>Stream</label>
+                    <select id="co-stream" required onchange="handleCollegeStreamChange()" style="width: 100%; padding: 11px; background: #111114; color: white; border: 1px solid var(--border); border-radius: 14px;">
+                        <option value="">Select Stream</option>
+                        <option value="Technology / Computer Science">Technology / Computer Science</option>
+                        <option value="Commerce">Commerce</option>
+                        <option value="Science">Science</option>
+                        <option value="Arts / Humanities">Arts / Humanities</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input type="text" id="co-stream-other" class="hidden" placeholder="Specify your stream" style="margin-top: 10px; width: 100%;">
+                </div>
+
+                <div class="form-group">
+                    <label>Degree / Course</label>
+                    <select id="co-degree" required disabled onchange="handleCollegeDegreeChange()" style="width: 100%; padding: 11px; background: #111114; color: white; border: 1px solid var(--border); border-radius: 14px;">
+                        <option value="">Select Degree (Select Stream first)</option>
+                    </select>
+                    <input type="text" id="co-degree-other" class="hidden" placeholder="Specify your degree" style="margin-top: 10px; width: 100%;">
+                </div>
+
+                <div class="form-group">
+                    <label>Specialization</label>
+                    <select id="co-specialization" required disabled onchange="toggleOtherInput('co-specialization', 'co-specialization-other')" style="width: 100%; padding: 11px; background: #111114; color: white; border: 1px solid var(--border); border-radius: 14px;">
+                        <option value="">Select Specialization (Select Degree first)</option>
+                    </select>
+                    <input type="text" id="co-specialization-other" class="hidden" placeholder="Specify your specialization" style="margin-top: 10px; width: 100%;">
+                </div>
+
+                <div class="form-group">
+                    <label>Semester / Year</label>
+                    <select id="co-semester" required style="width: 100%; padding: 11px; background: #111114; color: white; border: 1px solid var(--border); border-radius: 14px;">
+                        <option value="">Select Year</option>
+                        <option value="1st Year">1st Year</option>
+                        <option value="2nd Year">2nd Year</option>
+                        <option value="3rd Year">3rd Year</option>
+                        <option value="4th Year">4th Year</option>
+                        <option value="Post-Graduate / Other">Post-Graduate / Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Primary Career Goal</label>
+                    <input type="text" id="co-goal" required placeholder="E.g., Software Developer at Google">
+                </div>
+
+                <div class="form-group">
+                    <label>Top Skills (comma separated)</label>
+                    <input type="text" id="co-skills" required placeholder="E.g., Python, SQL, Communication">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button type="button" class="btn-secondary" onclick="goBackToSelection()"
+                        style="flex: 0.4; background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 12px; border-radius: 12px; cursor: pointer;">
+                        <i class="fa-solid fa-arrow-left"></i> Back
+                    </button>
+                    <button type="submit" class="btn-primary glow-button" id="onboarding-submit"
+                        style="flex: 1;">Complete Setup</button>
+                </div>
             </form>
 
             <div id="onboarding-result"></div>
+        </div>
+    </section>
+
+    <!-- School Onboarding Section -->
+    <section id="school-onboarding-section" class="auth-card hidden">
+        <div class="auth-box auto-height animate-pop" style="max-width: 600px; padding: 30px;">
+            <div class="brand-mark">CM</div>
+            <h2>School Student Profile</h2>
+            <p class="auth-subtitle">Help us guide your early career exploration.</p>
+
+            <form id="school-onboarding-form" onsubmit="event.preventDefault(); submitSchoolOnboarding();"
+                style="text-align: left;">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="so-fullname" required placeholder="E.g., John Doe">
+                </div>
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Class/Grade</label>
+                        <select id="so-grade" required onchange="toggleOtherInput('so-grade', 'so-grade-other')"
+                            style="width: 100%; padding: 11px; background: #111114; color: white; border: 1px solid var(--border); border-radius: 14px;">
+                            <option value="">Select Class</option>
+                            <option value="Class 8">Class 8</option>
+                            <option value="Class 9">Class 9</option>
+                            <option value="Class 10">Class 10</option>
+                            <option value="Class 11">Class 11</option>
+                            <option value="Class 12">Class 12</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <input type="text" id="so-grade-other" class="hidden" placeholder="Specify Class" style="margin-top: 10px; width: 100%;">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Board</label>
+                        <select id="so-board" required onchange="toggleOtherInput('so-board', 'so-board-other')"
+                            style="width: 100%; padding: 11px; background: #111114; color: white; border: 1px solid var(--border); border-radius: 14px;">
+                            <option value="">Select Board</option>
+                            <option value="CBSE">CBSE</option>
+                            <option value="ICSE">ICSE</option>
+                            <option value="State Board">State Board</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <input type="text" id="so-board-other" class="hidden" placeholder="Specify Board" style="margin-top: 10px; width: 100%;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Stream or Interest Area</label>
+                    <select id="so-stream" required onchange="handleStreamChange()"
+                        style="width: 100%; padding: 11px; background: #111114; color: white; border: 1px solid var(--border); border-radius: 14px;">
+                        <option value="">Select Interest Area</option>
+                        <option value="CSE/IT">Computer Science / IT</option>
+                        <option value="Science">Science (Physics, Chemistry, Bio/Math)</option>
+                        <option value="Commerce">Commerce / Business</option>
+                        <option value="Arts/Humanities">Arts / Humanities</option>
+                        <option value="Management">Management</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input type="text" id="so-stream-other" class="hidden" placeholder="Specify Stream" style="margin-top: 10px; width: 100%;">
+                </div>
+
+                <div class="form-group">
+                    <label>Career Goal</label>
+                    <input type="text" id="so-goal" required placeholder="E.g., Software Engineer, Doctor, etc.">
+                </div>
+
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Favorite Subjects</label>
+                        <input type="text" id="so-fav-subjects" required placeholder="E.g., Math, Physics">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Weak Subjects</label>
+                        <input type="text" id="so-weak-subjects" placeholder="E.g., Chemistry">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Skills Interested In (Select Multiple)</label>
+                    <div id="dynamic-skills-container"
+                        style="background: #111114; border: 1px solid var(--border); border-radius: 14px; padding: 15px; display: flex; flex-wrap: wrap; gap: 10px; max-height: 150px; overflow-y: auto;">
+                        <span style="color: var(--text-muted); font-size: 0.85rem;">Please select a Stream/Interest Area
+                            first to see relevant skills.</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Current Skill Level</label>
+                        <select id="so-skill-level" required
+                            style="width: 100%; padding: 11px; background: #111114; color: white; border: 1px solid var(--border); border-radius: 14px;">
+                            <option value="Beginner">Beginner</option>
+                            <option value="Intermediate">Intermediate</option>
+                            <option value="Advanced">Advanced</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Preferred Learning Style</label>
+                        <select id="so-learning-style" required
+                            style="width: 100%; padding: 11px; background: #111114; color: white; border: 1px solid var(--border); border-radius: 14px;">
+                            <option value="Visual (Videos/Diagrams)">Visual (Videos/Diagrams)</option>
+                            <option value="Auditory (Lectures/Podcasts)">Auditory (Lectures/Podcasts)</option>
+                            <option value="Reading/Writing">Reading/Writing</option>
+                            <option value="Kinesthetic (Hands-on)">Kinesthetic (Hands-on)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Future Target Exam / Goal</label>
+                    <select id="so-target" required
+                        style="width: 100%; padding: 11px; background: #111114; color: white; border: 1px solid var(--border); border-radius: 14px;">
+                        <option value="">Select Target</option>
+                        <option value="JEE">JEE</option>
+                        <option value="NEET">NEET</option>
+                        <option value="CUET">CUET</option>
+                        <option value="Government Exam">Government Exam</option>
+                        <option value="Coding">Coding/Tech Career</option>
+                        <option value="Design">Design/Creative</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Any additional notes?</label>
+                    <textarea id="so-notes" placeholder="Anything else you want us to know?"></textarea>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="button" class="btn-secondary" onclick="goBackToSelection()"
+                        style="flex: 0.4; background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 12px; border-radius: 12px; cursor: pointer;">
+                        <i class="fa-solid fa-arrow-left"></i> Back
+                    </button>
+                    <button type="submit" class="btn-primary glow-button" id="school-onboarding-submit"
+                        style="flex: 1;">Save Profile</button>
+                </div>
+            </form>
+            <div id="school-onboarding-result"></div>
         </div>
     </section>
 

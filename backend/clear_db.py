@@ -12,6 +12,7 @@ else:
     cursor = conn.cursor()
     cursor.execute('DELETE FROM chat_history')
     cursor.execute('DELETE FROM student_profiles')
+    cursor.execute('DELETE FROM school_student_profiles')
     cursor.execute('DELETE FROM onboarding_answers')
     cursor.execute('DELETE FROM students')
     conn.commit()

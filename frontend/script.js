@@ -12,6 +12,78 @@ let studentFirstName = localStorage.getItem("student_first_name") || "Student";
 let studentKeyOnboarding = "";
 let studentPasswordOnboarding = "";
 
+const collegeOptions = {
+  "Technology / Computer Science": {
+    "BCA": [
+      "Artificial Intelligence & Machine Learning",
+      "Data Science",
+      "Cybersecurity",
+      "Cloud Computing",
+      "Full Stack Development",
+      "General BCA"
+    ],
+    "B.Tech": [
+      "Computer Science Engineering",
+      "Information Technology",
+      "Artificial Intelligence",
+      "Data Science",
+      "Electronics & Communication"
+    ],
+    "B.Sc Computer Science": [
+      "Software Development",
+      "Network Security",
+      "Data Analytics"
+    ],
+    "MCA": ["General MCA", "Cloud Computing", "AI & ML"],
+    "M.Tech": ["CSE", "Data Science", "Cyber Security"]
+  },
+  "Commerce": {
+    "B.Com": [
+      "Accounting",
+      "Finance",
+      "Taxation",
+      "Banking & Insurance",
+      "Business Analytics"
+    ],
+    "BBA": [
+      "Marketing",
+      "Finance",
+      "Human Resource",
+      "International Business",
+      "Business Analytics"
+    ],
+    "BMS": ["Management Studies", "Finance", "Marketing"],
+    "MBA": ["Marketing", "Finance", "HR", "Operations", "IT"]
+  },
+  "Science": {
+    "B.Sc": [
+      "Physics",
+      "Chemistry",
+      "Mathematics",
+      "Biology",
+      "Biotechnology",
+      "Computer Science"
+    ],
+    "B.Tech": ["Biotech Engineering", "Food Technology"],
+    "MBBS": ["General Medicine"],
+    "B.Pharm": ["Pharmacology", "Pharmaceutics"],
+    "Nursing": ["General Nursing"]
+  },
+  "Arts / Humanities": {
+    "BA": [
+      "English",
+      "History",
+      "Political Science",
+      "Psychology",
+      "Sociology",
+      "Economics"
+    ],
+    "BSW": ["Social Work"],
+    "BJMC": ["Journalism", "Mass Communication"],
+    "BFA": ["Fine Arts", "Painting", "Sculpture"]
+  }
+};
+
 // Helper for downloading images (handles cross-origin issues)
 async function downloadImage(url, filename) {
     try {
@@ -208,11 +280,13 @@ function initAppFlow() {
     initChatHandlers();
     loadChatHistories();
     renderHistoryList();
+    // sidebar resize initialization
     initSidebarResize();
 
     // Force start on Register page as requested
     showRegister();
 }
+
 
 function initChatHandlers() {
     const textarea = document.getElementById("user-question");
@@ -276,13 +350,14 @@ function showOnboarding(newStudentKey, newStudentPassword) {
 
     hideAllSections();
     document.getElementById("onboarding-section").classList.remove("hidden");
-    renderOnboardingQuestions();
 }
 
 function hideAllSections() {
     const sections = [
         "register-section",
         "login-section",
+        "student-type-section",
+        "school-onboarding-section",
         "onboarding-section",
         "dashboard-section"
     ];
@@ -317,51 +392,43 @@ function safeClearRegistrationForm() {
     });
 }
 
-function renderOnboardingQuestions() {
-    const container = document.getElementById("onboarding-questions-container");
-    if (!container) return;
-    container.innerHTML = "";
-    onboardingQuestions.forEach((question, index) => {
-        const questionDiv = document.createElement("div");
-        questionDiv.className = "form-group";
-        questionDiv.innerHTML = `
-            <label for="onboarding-q${index}">
-                ${index + 1}. ${escapeHTML(question)}
-            </label>
-            <textarea 
-                id="onboarding-q${index}" 
-                placeholder="Your answer here..." 
-                rows="2"
-                required
-            ></textarea>
-        `;
-        container.appendChild(questionDiv);
-    });
-}
 
 async function submitOnboarding() {
     const resultBox = document.getElementById("onboarding-result");
     const submitButton = document.getElementById("onboarding-submit");
-    const answers = [];
-    let valid = true;
+    const fullName = document.getElementById("co-fullname").value.trim();
+    let stream = document.getElementById("co-stream").value;
+    let degree = document.getElementById("co-degree").value;
+    const semester = document.getElementById("co-semester").value;
+    let specialization = document.getElementById("co-specialization").value;
+    const goal = document.getElementById("co-goal").value.trim();
+    const skills = document.getElementById("co-skills").value.trim();
 
-    for (let i = 0; i < onboardingQuestions.length; i++) {
-        const answerBox = document.getElementById(`onboarding-q${i}`);
-        const answer = answerBox ? answerBox.value.trim() : "";
-        if (!answer) {
-            valid = false;
-            break;
-        }
-        answers.push({
-            question: onboardingQuestions[i],
-            answer: answer
-        });
+    // Use Other value if selected
+    if (stream === "Other") {
+        stream = document.getElementById("co-stream-other").value.trim() || "Other";
+    }
+    if (degree === "Other") {
+        degree = document.getElementById("co-degree-other").value.trim() || "Other";
+    }
+    if (specialization === "Other") {
+        specialization = document.getElementById("co-specialization-other").value.trim() || "Other";
     }
 
-    if (!valid) {
-        showError(resultBox, "Please answer all questions.");
+    if (!fullName || !stream || !degree || !semester || !specialization || !goal || !skills) {
+        showError(resultBox, "Please fill in all required fields.");
         return;
     }
+
+    const answers = [
+        { question: "Full Name", answer: fullName },
+        { question: "Stream", answer: stream },
+        { question: "Degree / Course", answer: degree },
+        { question: "Semester / Year", answer: semester },
+        { question: "Specialization", answer: specialization },
+        { question: "Primary Career Goal", answer: goal },
+        { question: "Top Skills", answer: skills }
+    ];
 
     setButtonLoading(submitButton, true, "Saving...");
     resultBox.innerHTML = "";
@@ -393,6 +460,259 @@ async function submitOnboarding() {
         setButtonLoading(submitButton, false, "Complete Setup");
     }
 }
+
+// ---------- NEW SCHOOL ONBOARDING LOGIC ----------
+
+function showStudentTypeSelection(newStudentKey, newStudentPassword) {
+    studentKeyOnboarding = newStudentKey;
+    studentPasswordOnboarding = newStudentPassword;
+    hideAllSections();
+    document.getElementById("student-type-section").classList.remove("hidden");
+}
+
+async function selectStudentType(type) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/set-student-type`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                student_key: studentKeyOnboarding,
+                password: studentPasswordOnboarding,
+                student_type: type
+            })
+        });
+        const data = await response.json();
+        if (data.success) {
+            if (type === 'school') {
+                showSchoolOnboarding(studentKeyOnboarding, studentPasswordOnboarding);
+            } else {
+                showOnboarding(studentKeyOnboarding, studentPasswordOnboarding);
+            }
+        } else {
+            alert("Error setting student type: " + data.message);
+        }
+    } catch (error) {
+        alert("Connection error setting student type.");
+    }
+}
+
+function showSchoolOnboarding(key, password) {
+    studentKeyOnboarding = key;
+    studentPasswordOnboarding = password;
+    hideAllSections();
+    document.getElementById("school-onboarding-section").classList.remove("hidden");
+    updateDynamicSkills(); // Initialize skills area
+}
+
+function goBackToSelection() {
+    hideAllSections();
+    document.getElementById("student-type-section").classList.remove("hidden");
+}
+
+function handleCollegeStreamChange() {
+    const stream = document.getElementById("co-stream").value;
+    const degreeSelect = document.getElementById("co-degree");
+    const specSelect = document.getElementById("co-specialization");
+    
+    // Reset following dropdowns
+    degreeSelect.innerHTML = '<option value="">Select Degree</option>';
+    specSelect.innerHTML = '<option value="">Select Specialization (Select Degree first)</option>';
+    degreeSelect.disabled = true;
+    specSelect.disabled = true;
+    
+    toggleOtherInput('co-stream', 'co-stream-other');
+    
+    if (stream && stream !== "Other") {
+        const degrees = Object.keys(collegeOptions[stream] || {});
+        if (degrees.length > 0) {
+            degrees.forEach(deg => {
+                const opt = document.createElement("option");
+                opt.value = deg;
+                opt.textContent = deg;
+                degreeSelect.appendChild(opt);
+            });
+            const otherOpt = document.createElement("option");
+            otherOpt.value = "Other";
+            otherOpt.textContent = "Other";
+            degreeSelect.appendChild(otherOpt);
+            degreeSelect.disabled = false;
+        } else {
+            // No predefined degrees, let them type Other
+            degreeSelect.innerHTML = '<option value="Other">Other</option>';
+            degreeSelect.disabled = false;
+            degreeSelect.value = "Other";
+            handleCollegeDegreeChange();
+        }
+    } else if (stream === "Other") {
+        degreeSelect.innerHTML = '<option value="Other">Other</option>';
+        degreeSelect.disabled = false;
+        degreeSelect.value = "Other";
+        handleCollegeDegreeChange();
+    }
+}
+
+function handleCollegeDegreeChange() {
+    const stream = document.getElementById("co-stream").value;
+    const degree = document.getElementById("co-degree").value;
+    const specSelect = document.getElementById("co-specialization");
+    
+    specSelect.innerHTML = '<option value="">Select Specialization</option>';
+    specSelect.disabled = true;
+    
+    toggleOtherInput('co-degree', 'co-degree-other');
+    
+    if (stream && degree && stream !== "Other" && degree !== "Other") {
+        const specializations = collegeOptions[stream][degree] || [];
+        if (specializations.length > 0) {
+            specializations.forEach(spec => {
+                const opt = document.createElement("option");
+                opt.value = spec;
+                opt.textContent = spec;
+                specSelect.appendChild(opt);
+            });
+            const otherOpt = document.createElement("option");
+            otherOpt.value = "Other";
+            otherOpt.textContent = "Other";
+            specSelect.appendChild(otherOpt);
+            specSelect.disabled = false;
+        } else {
+            specSelect.innerHTML = '<option value="Other">Other</option>';
+            specSelect.disabled = false;
+            specSelect.value = "Other";
+            toggleOtherInput('co-specialization', 'co-specialization-other');
+        }
+    } else if (degree === "Other") {
+        specSelect.innerHTML = '<option value="Other">Other</option>';
+        specSelect.disabled = false;
+        specSelect.value = "Other";
+        toggleOtherInput('co-specialization', 'co-specialization-other');
+    }
+}
+
+function toggleOtherInput(selectId, otherId) {
+    const select = document.getElementById(selectId);
+    const otherInput = document.getElementById(otherId);
+    if (select && otherInput) {
+        if (select.value === "Other") {
+            otherInput.classList.remove("hidden");
+            otherInput.focus();
+        } else {
+            otherInput.classList.add("hidden");
+        }
+    }
+}
+
+function handleStreamChange() {
+    toggleOtherInput('so-stream', 'so-stream-other');
+    updateDynamicSkills();
+}
+
+function updateDynamicSkills() {
+    const stream = document.getElementById("so-stream").value;
+    const container = document.getElementById("dynamic-skills-container");
+    
+    if (!stream) {
+        container.innerHTML = '<span style="color: var(--text-muted); font-size: 0.85rem;">Please select a Stream/Interest Area first to see relevant skills.</span>';
+        return;
+    }
+
+    const skillsMap = {
+        "CSE/IT": ["Python", "Java", "C++", "Data Structures", "Web Development", "AI/ML", "Database", "Cybersecurity", "Cloud Computing"],
+        "Commerce": ["Accounting", "Excel", "Business Studies", "Finance", "Marketing", "Tally", "Economics"],
+        "Science": ["Physics", "Chemistry", "Biology", "Mathematics", "Research Skills", "Lab Techniques"],
+        "Arts/Humanities": ["History", "Political Science", "Psychology", "Writing", "Communication", "Sociology"],
+        "Management": ["Leadership", "Excel", "Presentation", "Business Analytics", "Public Speaking", "Teamwork"],
+        "Other": ["Communication", "Problem Solving", "Time Management", "Critical Thinking", "Adaptability"]
+    };
+
+    const skills = skillsMap[stream] || skillsMap["Other"];
+    
+    container.innerHTML = skills.map((skill, index) => `
+        <label class="skill-checkbox-label" style="display: flex; align-items: center; gap: 6px; background: #1c1c21; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; border: 1px solid var(--border); cursor: pointer; transition: all 0.2s;">
+            <input type="checkbox" name="school_skills" value="${skill}" style="accent-color: var(--accent);">
+            ${skill}
+        </label>
+    `).join("");
+}
+
+async function submitSchoolOnboarding() {
+    const resultBox = document.getElementById("school-onboarding-result");
+    const submitButton = document.getElementById("school-onboarding-submit");
+    
+    const fullName = document.getElementById("so-fullname").value.trim();
+    let gradeClass = document.getElementById("so-grade").value;
+    let board = document.getElementById("so-board").value;
+    let stream = document.getElementById("so-stream").value;
+    const goal = document.getElementById("so-goal").value.trim();
+    const favSubjects = document.getElementById("so-fav-subjects").value.trim();
+    const weakSubjects = document.getElementById("so-weak-subjects").value.trim();
+    const skillLevel = document.getElementById("so-skill-level").value;
+    const learningStyle = document.getElementById("so-learning-style").value;
+    const futureTarget = document.getElementById("so-target").value;
+    const notes = document.getElementById("so-notes").value.trim();
+
+    // Use Other values if selected
+    if (gradeClass === "Other") {
+        gradeClass = document.getElementById("so-grade-other").value.trim() || "Other";
+    }
+    if (board === "Other") {
+        board = document.getElementById("so-board-other").value.trim() || "Other";
+    }
+    if (stream === "Other") {
+        stream = document.getElementById("so-stream-other").value.trim() || "Other";
+    }
+
+    // Get checked skills
+    const skillCheckboxes = document.querySelectorAll('input[name="school_skills"]:checked');
+    const selectedSkills = Array.from(skillCheckboxes).map(cb => cb.value).join(", ");
+
+    if (!fullName || !gradeClass || !board || !stream || !goal || !favSubjects || !skillLevel || !learningStyle || !futureTarget) {
+        showError(resultBox, "Please fill in all required fields.");
+        return;
+    }
+
+    setButtonLoading(submitButton, true, "Saving...");
+    resultBox.innerHTML = "";
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/school-onboarding`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                student_key: studentKeyOnboarding,
+                password: studentPasswordOnboarding,
+                full_name: fullName,
+                grade_class: gradeClass,
+                board: board,
+                stream_interest: stream,
+                career_goal: goal,
+                favorite_subjects: favSubjects,
+                weak_subjects: weakSubjects,
+                skills_interested: selectedSkills,
+                current_skill_level: skillLevel,
+                learning_style: learningStyle,
+                future_target: futureTarget,
+                notes: notes
+            })
+        });
+        const data = await response.json();
+        if (data.success) {
+            studentKey = studentKeyOnboarding;
+            studentPassword = studentPasswordOnboarding;
+            localStorage.setItem("student_key", studentKey);
+            localStorage.setItem("student_password", studentPassword);
+            showSuccess(resultBox, "Profile setup complete. Redirecting to dashboard...");
+            setTimeout(() => showDashboard(), 1200);
+        } else {
+            showError(resultBox, data.message || "Failed to save profile.");
+        }
+    } catch (error) {
+        showError(resultBox, `Connection error: ${error.message}`);
+    } finally {
+        setButtonLoading(submitButton, false, "Save Profile");
+    }
+}
+
 
 async function registerStudent() {
     const firstName = document.getElementById("reg-first-name").value.trim();
@@ -443,7 +763,7 @@ async function registerStudent() {
             localStorage.setItem("student_first_name", studentFirstName);
             showSuccess(resultBox, "Account created. Your student key has been sent to your email. Now complete your profile.");
             safeClearRegistrationForm();
-            setTimeout(() => showOnboarding(data.registration.student_key, password), 1300);
+            setTimeout(() => showStudentTypeSelection(data.registration.student_key, password), 1300);
         } else {
             showError(resultBox, data.registration?.message || "Registration failed. Please try again.");
         }
@@ -500,10 +820,10 @@ async function loginStudent() {
             // Reload user-specific history
             loadChatHistories();
 
-            // Enforce onboarding check
+            // Enforce onboarding check - Always show selection if not finished
             if (data.onboarding_completed === false) {
                 showSuccess(resultBox, "Login successful. Please complete your profile first.");
-                setTimeout(() => showOnboarding(studentKey, studentPassword), 1200);
+                setTimeout(() => showStudentTypeSelection(studentKey, studentPassword), 1200);
             } else {
                 showSuccess(resultBox, "Login successful. Redirecting...");
                 setTimeout(() => showDashboard(), 1000);
