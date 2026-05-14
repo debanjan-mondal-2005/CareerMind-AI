@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CareerMind AI</title>
-    <link rel="stylesheet" href="style.css?v=36">
+    <link rel="stylesheet" href="style.css?v=37">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Markdown parser for rich responses -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -440,25 +440,30 @@
         <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
     </section>
 
-    <script src="script.js?v=36"></script>
+    <script src="script.js?v=37"></script>
 
-    <!-- Live Reload Client -->
+    <!-- Live Reload: DEVELOPMENT ONLY — never runs on Vercel or any https: domain -->
     <script>
         (function () {
-            const wsUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                ? "ws://localhost:8000/ws-reload"
-                : `ws://${window.location.hostname}:8000/ws-reload`;
+            // Guard: only run on local development servers, never on production
+            const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const isHttps = window.location.protocol === 'https:';
+
+            if (!isLocalDev || isHttps) {
+                // Do NOT connect in production. Silently exit.
+                return;
+            }
 
             function connect() {
-                const socket = new WebSocket(wsUrl);
+                const socket = new WebSocket('ws://localhost:8000/ws-reload');
                 socket.onmessage = function (event) {
-                    if (event.data === "reload") {
-                        console.log("🚀 Code changed! Reloading...");
+                    if (event.data === 'reload') {
+                        console.log('🚀 Code changed! Reloading...');
                         window.location.reload();
                     }
                 };
                 socket.onclose = function () {
-                    // Try to reconnect if server drops
+                    // Retry only in dev
                     setTimeout(connect, 2000);
                 };
             }
