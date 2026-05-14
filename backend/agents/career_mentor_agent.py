@@ -104,6 +104,7 @@ OTHER IMPORTANT INSTRUCTIONS:
 3. CONCISENESS & POLITENESS: Be extremely direct for technical questions. However, if the user says 'Thank you', respond with a warm closing.
 4. CLOSING CHATS: If the user says 'Goodbye', respond with a friendly closing.
 5. NO REPETITIVE GREETINGS at the start of every message.
+6. SELECTIVE STRUCTURE: The 12-point structure and visual hierarchy rules apply ONLY to career guidance, roadmaps, and technical advice. For simple gratitude (e.g., "Thank you"), greetings, or small talk, keep the response short, warm, and professional.
 """
         user_prompt = f"Question: {user_question}\nAnswer:"
         

@@ -220,7 +220,7 @@ function openChatHistory(chatId) {
         } else {
             const msgDiv = document.createElement("div");
             msgDiv.className = "message-row ai";
-            const safeAnswer = escapeHTML(msg.content);
+            const safeAnswer = typeof marked !== 'undefined' ? marked.parse(msg.content) : escapeHTML(msg.content);
             const sourcesHtml = renderSources(msg.sources || []);
 
             // Render basic message structure
@@ -1118,7 +1118,8 @@ function appendAIMessage(answer, sources = []) {
     const outputArea = document.getElementById("output-area");
     const msg = document.createElement("div");
     msg.className = "message-row ai fade-in";
-    const safeAnswer = escapeHTML(cleanAnswerText(answer));
+    const cleanText = cleanAnswerText(answer);
+    const safeAnswer = typeof marked !== 'undefined' ? marked.parse(cleanText) : escapeHTML(cleanText);
     const sourcesHtml = renderSources(sources);
     msg.innerHTML = `
         <div class="message-bubble">
@@ -1141,17 +1142,18 @@ function appendAIImageMessage(text, imageUrl, sources = []) {
     // Ensure the image URL points to the correct backend port
     const fullImageUrl = imageUrl.startsWith("http") ? imageUrl : `${API_BASE_URL}${imageUrl}`;
 
-    // Use the clean success message
-    const cleanText = text.toLowerCase().includes("generated an image")
+    // Use the clean success message and format it with markdown
+    const rawText = text.toLowerCase().includes("generated an image")
         ? "Image generated successfully! Now you can download it."
-        : escapeHTML(cleanAnswerText(text));
+        : cleanAnswerText(text);
+    const safeAnswer = typeof marked !== 'undefined' ? marked.parse(rawText) : escapeHTML(rawText);
 
     const sourcesHtml = renderSources(sources);
 
     msg.innerHTML = `
         <div class="message-bubble">
             <div class="message-sender">CareerMind AI</div>
-            <div class="message-content">${cleanText}</div>
+            <div class="message-content">${safeAnswer}</div>
             <div class="generated-image-card">
                 <div class="generated-image-wrapper">
                     <img src="${fullImageUrl}" alt="Generated image" class="generated-image" loading="lazy">
@@ -1358,7 +1360,7 @@ async function askSmartAgent() {
                     textPart = "Image generated successfully! Now you can download it.";
                 }
 
-                contentEl.innerText = textPart;
+                contentEl.innerHTML = typeof marked !== 'undefined' ? marked.parse(textPart) : escapeHTML(textPart);
 
                 // If the URL part is complete (or at least looks like a URL)
                 if (urlPart.length > 5 && !contentEl.parentElement.querySelector(".generated-image-card")) {
@@ -1389,7 +1391,7 @@ async function askSmartAgent() {
                     }
                 }
             } else {
-                contentEl.appendChild(document.createTextNode(chunk));
+                contentEl.innerHTML = typeof marked !== 'undefined' ? marked.parse(fullAnswer) : escapeHTML(fullAnswer);
             }
 
             scrollToBottom(true);
