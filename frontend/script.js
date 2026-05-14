@@ -824,17 +824,17 @@ async function loginStudent() {
             if (data.onboarding_completed === false) {
                 if (data.student && data.student.student_type === 'school') {
                     showSuccess(resultBox, "Login successful. Continuing school profile...");
-                    setTimeout(() => showSchoolOnboarding(studentKey, studentPassword), 1200);
+                    setTimeout(() => showSchoolOnboarding(studentKey, studentPassword), 500);
                 } else if (data.student && data.student.student_type === 'college') {
                     showSuccess(resultBox, "Login successful. Continuing college profile...");
-                    setTimeout(() => showOnboarding(studentKey, studentPassword), 1200);
+                    setTimeout(() => showOnboarding(studentKey, studentPassword), 500);
                 } else {
                     showSuccess(resultBox, "Login successful. Please complete your profile first.");
-                    setTimeout(() => showStudentTypeSelection(studentKey, studentPassword), 1200);
+                    setTimeout(() => showStudentTypeSelection(studentKey, studentPassword), 500);
                 }
             } else {
                 showSuccess(resultBox, "Login successful. Redirecting...");
-                setTimeout(() => showDashboard(), 1000);
+                setTimeout(() => showDashboard(), 300);
             }
         } else {
             showError(resultBox, data.message || "Login failed. Please check your credentials.");
@@ -873,6 +873,13 @@ function clearSession() {
     if (input) input.value = "";
     if (welcomeScreen) welcomeScreen.classList.remove("hidden");
     if (historyList) historyList.innerHTML = "";
+
+    // Clear result boxes
+    const resultBoxes = ["login-result", "register-result", "onboarding-result", "school-onboarding-result"];
+    resultBoxes.forEach(id => {
+        const box = document.getElementById(id);
+        if (box) box.innerHTML = "";
+    });
 
     // Clear all onboarding forms
     const forms = ["onboarding-form", "school-onboarding-form"];

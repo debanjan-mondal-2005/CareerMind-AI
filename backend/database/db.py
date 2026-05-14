@@ -178,7 +178,7 @@ def login_student(student_key, password):
             if student.student_type == 'school':
                 onboarding_completed = db.query(SchoolStudentProfile).filter(SchoolStudentProfile.student_id == student.id).first() is not None
             elif student.student_type == 'college':
-                onboarding_completed = db.query(StudentProfile).filter(StudentProfile.student_id == student.id).first() is not None
+                onboarding_completed = db.query(OnboardingAnswer).filter(OnboardingAnswer.student_id == student.id).first() is not None or db.query(StudentProfile).filter(StudentProfile.student_id == student.id).first() is not None
             else:
                 onboarding_completed = False
 
