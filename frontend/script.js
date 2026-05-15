@@ -13,75 +13,75 @@ let studentKeyOnboarding = "";
 let studentPasswordOnboarding = "";
 
 const collegeOptions = {
-  "Technology / Computer Science": {
-    "BCA": [
-      "Artificial Intelligence & Machine Learning",
-      "Data Science",
-      "Cybersecurity",
-      "Cloud Computing",
-      "Full Stack Development",
-      "General BCA"
-    ],
-    "B.Tech": [
-      "Computer Science Engineering",
-      "Information Technology",
-      "Artificial Intelligence",
-      "Data Science",
-      "Electronics & Communication"
-    ],
-    "B.Sc Computer Science": [
-      "Software Development",
-      "Network Security",
-      "Data Analytics"
-    ],
-    "MCA": ["General MCA", "Cloud Computing", "AI & ML"],
-    "M.Tech": ["CSE", "Data Science", "Cyber Security"]
-  },
-  "Commerce": {
-    "B.Com": [
-      "Accounting",
-      "Finance",
-      "Taxation",
-      "Banking & Insurance",
-      "Business Analytics"
-    ],
-    "BBA": [
-      "Marketing",
-      "Finance",
-      "Human Resource",
-      "International Business",
-      "Business Analytics"
-    ],
-    "BMS": ["Management Studies", "Finance", "Marketing"],
-    "MBA": ["Marketing", "Finance", "HR", "Operations", "IT"]
-  },
-  "Science": {
-    "B.Sc": [
-      "Physics",
-      "Chemistry",
-      "Mathematics",
-      "Biology",
-      "Biotechnology",
-      "Computer Science"
-    ],
-    "B.Tech": ["Biotech Engineering", "Food Technology"],
-    "MBBS": ["General Medicine"],
-    "B.Pharm": ["Pharmacology", "Pharmaceutics"],
-    "Nursing": ["General Nursing"]
-  },
-  "Arts / Humanities": {
-    "BA": [
-      "English",
-      "History",
-      "Political Science",
-      "Psychology",
-      "Sociology",
-      "Economics"
-    ],
-    "BSW": ["Social Work"],
-    "BJMC": ["Journalism", "Mass Communication"],
-    "BFA": ["Fine Arts", "Painting", "Sculpture"]
-  }
+    "Technology / Computer Science": {
+        "BCA": [
+            "Artificial Intelligence & Machine Learning",
+            "Data Science",
+            "Cybersecurity",
+            "Cloud Computing",
+            "Full Stack Development",
+            "General BCA"
+        ],
+        "B.Tech": [
+            "Computer Science Engineering",
+            "Information Technology",
+            "Artificial Intelligence",
+            "Data Science",
+            "Electronics & Communication"
+        ],
+        "B.Sc Computer Science": [
+            "Software Development",
+            "Network Security",
+            "Data Analytics"
+        ],
+        "MCA": ["General MCA", "Cloud Computing", "AI & ML"],
+        "M.Tech": ["CSE", "Data Science", "Cyber Security"]
+    },
+    "Commerce": {
+        "B.Com": [
+            "Accounting",
+            "Finance",
+            "Taxation",
+            "Banking & Insurance",
+            "Business Analytics"
+        ],
+        "BBA": [
+            "Marketing",
+            "Finance",
+            "Human Resource",
+            "International Business",
+            "Business Analytics"
+        ],
+        "BMS": ["Management Studies", "Finance", "Marketing"],
+        "MBA": ["Marketing", "Finance", "HR", "Operations", "IT"]
+    },
+    "Science": {
+        "B.Sc": [
+            "Physics",
+            "Chemistry",
+            "Mathematics",
+            "Biology",
+            "Biotechnology",
+            "Computer Science"
+        ],
+        "B.Tech": ["Biotech Engineering", "Food Technology"],
+        "MBBS": ["General Medicine"],
+        "B.Pharm": ["Pharmacology", "Pharmaceutics"],
+        "Nursing": ["General Nursing"]
+    },
+    "Arts / Humanities": {
+        "BA": [
+            "English",
+            "History",
+            "Political Science",
+            "Psychology",
+            "Sociology",
+            "Economics"
+        ],
+        "BSW": ["Social Work"],
+        "BJMC": ["Journalism", "Mass Communication"],
+        "BFA": ["Fine Arts", "Painting", "Sculpture"]
+    }
 };
 
 // Helper for downloading images (handles cross-origin issues)
@@ -305,10 +305,31 @@ function initChatHandlers() {
     });
 }
 
+let initialRegisterHTML = "";
+
 function showRegister() {
     hideAllSections();
-    document.getElementById("register-section").classList.remove("hidden");
+    const registerSection = document.getElementById("register-section");
+    const authBox = registerSection.querySelector(".auth-box");
+
+    // Remove success mode when returning to register form
+    if (authBox) {
+        authBox.classList.remove("success-mode");
+    }
+
+    // Save initial HTML once so we can restore it after success card
+    if (!initialRegisterHTML && authBox) {
+        initialRegisterHTML = authBox.innerHTML;
+    }
+
+    // Restore form if it was replaced by success card
+    if (authBox && initialRegisterHTML && authBox.querySelector(".success-icon")) {
+        authBox.innerHTML = initialRegisterHTML;
+    }
+
+    registerSection.classList.remove("hidden");
     safeClearRegistrationForm();
+
     const registerResult = document.getElementById("register-result");
     if (registerResult) registerResult.innerHTML = "";
 }
@@ -513,15 +534,15 @@ function handleCollegeStreamChange() {
     const stream = document.getElementById("co-stream").value;
     const degreeSelect = document.getElementById("co-degree");
     const specSelect = document.getElementById("co-specialization");
-    
+
     // Reset following dropdowns
     degreeSelect.innerHTML = '<option value="">Select Degree</option>';
     specSelect.innerHTML = '<option value="">Select Specialization (Select Degree first)</option>';
     degreeSelect.disabled = true;
     specSelect.disabled = true;
-    
+
     toggleOtherInput('co-stream', 'co-stream-other');
-    
+
     if (stream && stream !== "Other") {
         const degrees = Object.keys(collegeOptions[stream] || {});
         if (degrees.length > 0) {
@@ -555,12 +576,12 @@ function handleCollegeDegreeChange() {
     const stream = document.getElementById("co-stream").value;
     const degree = document.getElementById("co-degree").value;
     const specSelect = document.getElementById("co-specialization");
-    
+
     specSelect.innerHTML = '<option value="">Select Specialization</option>';
     specSelect.disabled = true;
-    
+
     toggleOtherInput('co-degree', 'co-degree-other');
-    
+
     if (stream && degree && stream !== "Other" && degree !== "Other") {
         const specializations = collegeOptions[stream][degree] || [];
         if (specializations.length > 0) {
@@ -610,7 +631,7 @@ function handleStreamChange() {
 function updateDynamicSkills() {
     const stream = document.getElementById("so-stream").value;
     const container = document.getElementById("dynamic-skills-container");
-    
+
     if (!stream) {
         container.innerHTML = '<span style="color: var(--text-muted); font-size: 0.85rem;">Please select a Stream/Interest Area first to see relevant skills.</span>';
         return;
@@ -626,7 +647,7 @@ function updateDynamicSkills() {
     };
 
     const skills = skillsMap[stream] || skillsMap["Other"];
-    
+
     container.innerHTML = skills.map((skill, index) => `
         <label class="skill-checkbox-label" style="display: flex; align-items: center; gap: 6px; background: #1c1c21; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; border: 1px solid var(--border); cursor: pointer; transition: all 0.2s;">
             <input type="checkbox" name="school_skills" value="${skill}" style="accent-color: var(--accent);">
@@ -638,7 +659,7 @@ function updateDynamicSkills() {
 async function submitSchoolOnboarding() {
     const resultBox = document.getElementById("school-onboarding-result");
     const submitButton = document.getElementById("school-onboarding-submit");
-    
+
     const fullName = document.getElementById("so-fullname").value.trim();
     let gradeClass = document.getElementById("so-grade").value;
     let board = document.getElementById("so-board").value;
@@ -714,7 +735,13 @@ async function submitSchoolOnboarding() {
 }
 
 
+let resendTimer = null;
+let resendSeconds = 60;
+let isRegistering = false;
+
 async function registerStudent() {
+    if (isRegistering) return;
+
     const firstName = document.getElementById("reg-first-name").value.trim();
     const middleName = document.getElementById("reg-middle-name").value.trim();
     const lastName = document.getElementById("reg-last-name").value.trim();
@@ -741,8 +768,16 @@ async function registerStudent() {
         return;
     }
 
-    setButtonLoading(button, true, "Registering...");
+    isRegistering = true;
+    setButtonLoading(button, true, "Creating account...");
     resultBox.innerHTML = "";
+
+    // Cold start timeout UX
+    const timeoutMsg = setTimeout(() => {
+        if (isRegistering) {
+            showSuccess(resultBox, "Server is starting. This may take a few moments...");
+        }
+    }, 15000);
 
     try {
         const response = await fetch(`${API_BASE_URL}/register`, {
@@ -756,21 +791,152 @@ async function registerStudent() {
                 password: password
             })
         });
+
+        clearTimeout(timeoutMsg);
         const data = await response.json();
+
         if (data.registration && data.registration.success) {
-            clearSession(); // Wipe any old data before starting new account
+            clearSession();
             studentFirstName = firstName;
             localStorage.setItem("student_first_name", studentFirstName);
-            showSuccess(resultBox, "Account created successfully! Your Student Key has been sent to your email. Please login to continue.");
+
+            // Show Success Card
+            showRegisterSuccessCard(email);
             safeClearRegistrationForm();
-            setTimeout(() => showLogin(), 2000);
         } else {
             showError(resultBox, data.registration?.message || "Registration failed. Please try again.");
         }
     } catch (error) {
-        showError(resultBox, `Connection error: ${error.message}`);
+        clearTimeout(timeoutMsg);
+        console.error("Registration error:", error);
+        showError(resultBox, "Server connection failed. Please try again later.");
     } finally {
+        isRegistering = false;
         setButtonLoading(button, false, "Create Account");
+    }
+}
+
+function showRegisterSuccessCard(email) {
+    const registerBox = document.querySelector("#register-section .auth-box");
+    if (!registerBox) return;
+    registerBox.classList.add("success-mode");
+    const safeEmail = escapeHTML(email);
+
+    registerBox.innerHTML = `
+        <div class="brand-mark">CM</div>
+
+        <div class="success-icon" style="font-size: 3rem; color: #10b981; margin-bottom: 20px;">
+            <i class="fa-solid fa-circle-check"></i>
+        </div>
+
+        <h2>Account Created Successfully</h2>
+
+        <p class="auth-subtitle" style="margin-bottom: 24px;">
+            A verification email containing your Student Key has been sent to:
+            <br><br>
+            <strong style="color:#ffffff; font-size:15px;">${safeEmail}</strong>
+            <br><br>
+            Please check your inbox and spam folder before requesting a resend.
+        </p>
+        
+        <div class="info-card" style="background: rgba(139, 92, 246, 0.05); padding: 15px; border-radius: 12px; margin-bottom: 24px; border: 1px solid rgba(139, 92, 246, 0.2); text-align: left;">
+            <ul style="margin: 0; padding-left: 20px; font-size: 0.9rem; color: #94a3b8;">
+                <li>Find your unique Student Key in the email</li>
+                <li>Use it along with your password to sign in</li>
+                <li>Complete your profile to unlock full potential</li>
+            </ul>
+        </div>
+
+        <div id="resend-result"></div>
+
+        <div class="register-success-actions">
+            <button 
+                type="button"
+                id="resend-btn"
+                class="btn-primary resend-student-key-btn"
+                onclick="resendStudentKey('${safeEmail}')"
+                disabled>
+                Resend Student Key in 60s
+            </button>
+
+            <button 
+                type="button"
+                onclick="showLogin()"
+                class="btn-primary go-signin-btn">
+                Go to Sign In
+            </button>
+        </div>
+        
+        <div class="debanjan-footer" style="margin-top: 30px;">
+            © 2026 Debanjan Mondal. All rights reserved.
+        </div>
+    `;
+
+    startResendCountdown();
+}
+
+function startResendCountdown() {
+    const btn = document.getElementById("resend-btn");
+    if (!btn) return;
+
+    clearInterval(resendTimer);
+
+    resendSeconds = 60;
+
+    btn.disabled = true;
+    btn.innerHTML = `Resend Student Key in ${resendSeconds}s`;
+
+    resendTimer = setInterval(() => {
+        resendSeconds--;
+
+        if (resendSeconds <= 0) {
+            clearInterval(resendTimer);
+
+            btn.disabled = false;
+            btn.innerHTML = "Resend Student Key";
+
+        } else {
+            btn.innerHTML = `Resend Student Key in ${resendSeconds}s`;
+        }
+
+    }, 1000);
+}
+
+async function resendStudentKey(email) {
+    const btn = document.getElementById("resend-btn");
+    const resultBox = document.getElementById("resend-result");
+    if (!btn || btn.disabled) return;
+
+    setButtonLoading(btn, true, "Sending...");
+    btn.classList.add("loading");
+    resultBox.innerHTML = "";
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/resend-student-key`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showSuccess(resultBox, data.message);
+            startResendCountdown();
+        } else {
+            showError(resultBox, data.message);
+            if (data.remaining_seconds) {
+                resendSeconds = data.remaining_seconds;
+            }
+        }
+    } catch (error) {
+        showError(resultBox, "Failed to connect to server.");
+    } finally {
+        btn.classList.remove("loading");
+        if (resendSeconds > 0) {
+            // Keep it disabled if countdown still running
+        } else {
+            setButtonLoading(btn, false, "Resend Student Key");
+        }
     }
 }
 
@@ -892,7 +1058,7 @@ function clearSession() {
             others.forEach(o => o.style.display = "none");
         }
     });
-    
+
     // Clear type selection cache if any
     const streamOther = document.getElementById("co-stream-other");
     if (streamOther) streamOther.style.display = "none";

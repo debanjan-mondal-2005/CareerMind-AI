@@ -44,6 +44,7 @@ app.add_middleware(
 
 from database.db import (
     create_tables,
+    migrate_student_table,
     register_student,
     login_student,
     save_chat_history,
@@ -96,10 +97,11 @@ async def init_db_task():
         
         print("Initializing database tables (background task)...")
         # Run synchronous create_tables in a thread to not block event loop
-        await asyncio.to_thread(create_tables)
+        # Already handled in startup_event for safety, but keeping this for logging environment
+        # await asyncio.to_thread(create_tables)
         print("Database initialized successfully.")
     except Exception as e:
-        print(f"Database initialization failed: {e}")
+        print(f"Environment check failed: {e}")
 
 # Live Reload (WebSocket + Watchdog)
 
@@ -152,16 +154,18 @@ async def broadcast_reloads():
 
 @app.on_event("startup")
 async def startup_event():
-    # 1. Initialize DB (Blocking to ensure tables exist before first request)
+    # 1. Initialize DB (Sync and Blocking to ensure tables exist before first request)
     try:
-        print("Initializing database tables...")
-        from database.db import create_tables
+        print("🚀 Initializing database tables...")
+        from database.db import create_tables, migrate_student_table
         create_tables()
-        print("✅ Database ready.")
+        # Run migrations after tables are created/checked
+        migrate_student_table()
+        print("✅ Database ready and migrated.")
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
 
-    # 2. Log environment status (Non-blocking)
+    # 2. Run environment checks (Non-blocking background task)
     asyncio.create_task(init_db_task())
 
     # 3. Start the watchdog observer for frontend (dev only, safe to skip on Render)
@@ -253,6 +257,13 @@ class ProfileRequest(BaseModel):
     skills: str
     weak_areas: str
     daily_study_hours: str
+
+class ResendStudentKeyRequest(BaseModel):
+    email: str
+
+# In-memory resend cooldown storage
+RESEND_COOLDOWN = {}
+RESEND_WAIT_SECONDS = 60
 
 # -----------------------------
 # Helper Functions
@@ -400,6 +411,7 @@ def health_check():
 # ----------------------------------------------------------------------
 @app.post("/register")
 def register(request: RegisterRequest, background_tasks: BackgroundTasks):
+    # Pass background_tasks to email sending later, but first register in DB
     result = register_student(
         request.first_name,
         request.middle_name,
@@ -408,14 +420,66 @@ def register(request: RegisterRequest, background_tasks: BackgroundTasks):
         request.password
     )
     if result["success"]:
-        # Send email in background to reduce user wait time
+        # Schedule email sending using BackgroundTasks
         background_tasks.add_task(
             send_registration_email,
             to_email=request.email,
             first_name=request.first_name,
             student_key=result["student_key"]
         )
-    return {"registration": result, "email": "Sent in background"}
+        return {
+            "registration": result,
+            "email": {
+                "status": "queued",
+                "message": "Student Key email is being sent in background."
+            }
+        }
+    return {"registration": result, "email": "Not sent due to registration failure"}
+
+@app.post("/resend-student-key")
+async def resend_student_key_endpoint(request: ResendStudentKeyRequest, background_tasks: BackgroundTasks):
+    from database.db import SessionLocal, Student
+    import time
+    
+    email = request.email.strip().lower()
+    now = time.time()
+    
+    # 1. Rate limiting check
+    if email in RESEND_COOLDOWN:
+        elapsed = now - RESEND_COOLDOWN[email]
+        if elapsed < RESEND_WAIT_SECONDS:
+            remaining = int(RESEND_WAIT_SECONDS - elapsed)
+            return {
+                "success": False, 
+                "message": f"Please wait {remaining} seconds before requesting again.",
+                "remaining_seconds": remaining
+            }
+    
+    # Update cooldown timestamp
+    RESEND_COOLDOWN[email] = now
+    
+    # 2. Logic: find student by email
+    db = SessionLocal()
+    try:
+        student = db.query(Student).filter(Student.email == email).first()
+        if student:
+            print(f"[RESEND] Queuing email for: {email}")
+            background_tasks.add_task(
+                send_registration_email,
+                to_email=student.email,
+                first_name=student.first_name,
+                student_key=student.student_key
+            )
+        else:
+            print(f"[RESEND] Email not found (silent success): {email}")
+            
+        # 3. Safe response: do not expose whether email exists
+        return {
+            "success": True,
+            "message": "If this email is registered, the Student Key will be sent shortly."
+        }
+    finally:
+        db.close()
 
 @app.post("/login")
 def login(request: LoginRequest):

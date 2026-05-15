@@ -59,6 +59,8 @@ class Student(Base):
     email = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
     student_type = Column(String, nullable=True) # 'school' or 'college'
+    email_sent_status = Column(String, nullable=True, default="pending") # pending, sent, failed
+    email_sent_at = Column(String, nullable=True)
     created_at = Column(String, nullable=False)
 
 class OnboardingAnswer(Base):
@@ -117,6 +119,50 @@ def create_tables():
     """Create all tables in the database (Works for both SQLite and Postgres)"""
     Base.metadata.create_all(bind=engine)
 
+def migrate_student_table():
+    print("[MIGRATION] Checking students table...")
+    db = SessionLocal()
+    try:
+        # Detect existing columns
+        if DATABASE_URL.startswith("sqlite"):
+            columns_query = text("PRAGMA table_info(students)")
+            result = db.execute(columns_query).fetchall()
+            existing_columns = [row[1] for row in result]
+        else:
+            # Postgres
+            columns_query = text("SELECT column_name FROM information_schema.columns WHERE table_name = 'students'")
+            result = db.execute(columns_query).fetchall()
+            existing_columns = [row[0] for row in result]
+
+        # Define columns to add
+        new_columns = [
+            ("email_sent_status", "VARCHAR", "DEFAULT 'pending'"),
+            ("email_sent_at", "VARCHAR", "NULL")
+        ]
+
+        migration_happened = False
+        for col_name, col_type, col_extra in new_columns:
+            if col_name not in existing_columns:
+                print(f"[MIGRATION] Adding {col_name} to students table...")
+                alter_query = text(f"ALTER TABLE students ADD COLUMN {col_name} {col_type} {col_extra}")
+                db.execute(alter_query)
+                print(f"[MIGRATION] {col_name} column added")
+                migration_happened = True
+            else:
+                print(f"[MIGRATION] {col_name} already exists")
+
+        if migration_happened:
+            db.commit()
+            print("[MIGRATION] Migration complete and committed")
+        else:
+            print("[MIGRATION] No migration needed")
+
+    except Exception as e:
+        db.rollback()
+        print(f"[MIGRATION] ERROR: {str(e)}")
+    finally:
+        db.close()
+
 def get_db():
     db = SessionLocal()
     try:
@@ -128,35 +174,86 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def generate_student_key(first_name, db):
+    import time
+    start_time = time.perf_counter()
     year = datetime.now().year
     prefix = first_name[0].upper() if first_name else "S"
-    while True:
+    attempts = 0
+    max_attempts = 20
+    
+    while attempts < max_attempts:
+        attempts += 1
         random_number = random.randint(1, 9999)
         student_key = f"{prefix}{year}-{random_number:04d}"
         exists = db.query(Student).filter(Student.student_key == student_key).first()
         if not exists:
+            # print(f"[DEBUG] Key generated in {attempts} attempts")
             return student_key
+    
+    raise Exception("Could not generate a unique student key after 20 attempts")
 
 # --- Business Logic Functions (API Compatible) ---
 
 def register_student(first_name, middle_name, last_name, email, password):
+    import time
+    total_start = time.perf_counter()
+    
     if not first_name or not last_name or not email or not password:
         return {"success": False, "message": "Required fields missing"}
 
+    # Normalize email
+    email = email.strip().lower()
+
+    t_session = time.perf_counter()
     db = SessionLocal()
+    t_session_end = time.perf_counter()
+    print(f"[REGISTER] DB session opened: {t_session_end - t_session:.4f}s")
+
     try:
+        # Check duplicate email before anything else
+        t_dup = time.perf_counter()
+        existing_email = db.query(Student).filter(Student.email == email).first()
+        t_dup_end = time.perf_counter()
+        print(f"[REGISTER] Duplicate check: {t_dup_end - t_dup:.4f}s")
+        
+        if existing_email:
+            return {"success": False, "message": "This email is already registered."}
+
+        t_key = time.perf_counter()
         student_key = generate_student_key(first_name, db)
+        t_key_end = time.perf_counter()
+        print(f"[REGISTER] Student key generated: {t_key_end - t_key:.4f}s")
+
+        t_hash = time.perf_counter()
+        pwd_hash = hash_password(password)
+        t_hash_end = time.perf_counter()
+        print(f"[REGISTER] Password hashed: {t_hash_end - t_hash:.4f}s")
+
         new_student = Student(
             student_key=student_key,
             first_name=first_name,
             middle_name=middle_name,
             last_name=last_name,
             email=email,
-            password_hash=hash_password(password),
+            password_hash=pwd_hash,
+            student_type=None,
+            email_sent_status="pending",
             created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
+        
+        t_add = time.perf_counter()
         db.add(new_student)
+        t_add_end = time.perf_counter()
+        print(f"[REGISTER] DB add: {t_add_end - t_add:.4f}s")
+
+        t_commit = time.perf_counter()
         db.commit()
+        t_commit_end = time.perf_counter()
+        print(f"[REGISTER] DB commit: {t_commit_end - t_commit:.4f}s")
+
+        total_end = time.perf_counter()
+        print(f"[REGISTER] Total time: {total_end - total_start:.4f}s")
+        
         return {"success": True, "message": "Registered successfully", "student_key": student_key}
     except Exception as e:
         db.rollback()
@@ -164,7 +261,7 @@ def register_student(first_name, middle_name, last_name, email, password):
         print(f"Registration Error: {error_msg}")
         if "UNIQUE constraint failed" in error_msg or "duplicate key value" in error_msg.lower():
             return {"success": False, "message": "This email is already registered."}
-        return {"success": False, "message": f"Connection error: {error_msg[:100]}"}
+        return {"success": False, "message": f"Registration failed: {error_msg[:100]}"}
     finally:
         db.close()
 
