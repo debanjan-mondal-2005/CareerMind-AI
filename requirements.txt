@@ -11,8 +11,6 @@ psycopg2-binary
 supabase
 huggingface_hub
 groq
-google-genai
-google-generativeai
 resend
 PyMuPDF
 pdfplumber
@@ -24,9 +22,5 @@ langchain-core
 langchain-text-splitters
 grpcio-status>=1.75.1
 python-dateutil
-passlib
-bcrypt
 tavily-python
-watchdog
 Pillow
-psutil
