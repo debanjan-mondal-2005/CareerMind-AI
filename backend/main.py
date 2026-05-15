@@ -98,54 +98,7 @@ async def init_db_task():
     except Exception as e:
         print(f"Environment check failed: {e}")
 
-# Live Reload (WebSocket + Watchdog)
 
-class LiveReloadHandler(FileSystemEventHandler):
-    def __init__(self, queue):
-        self.queue = queue
-    def on_modified(self, event):
-        if not event.is_directory:
-            # Signal a reload
-            asyncio.run_coroutine_threadsafe(self.queue.put("reload"), loop)
-
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
-            try:
-                await connection.send_text(message)
-            except:
-                pass
-
-manager = ConnectionManager()
-reload_queue = asyncio.Queue()
-loop = asyncio.get_event_loop()
-
-@app.websocket("/ws-reload")
-async def websocket_reload(websocket: WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
-
-async def broadcast_reloads():
-    while True:
-        await reload_queue.get()
-        # Debounce a bit to avoid double-reloads
-        await asyncio.sleep(0.5)
-        # Clear queue if multiple changes happened
-        while not reload_queue.empty():
-            reload_queue.get_nowait()
-        print("File change detected! Refreshing all clients...")
-        await manager.broadcast("reload")
 
 @app.on_event("startup")
 async def startup_event():
@@ -163,25 +116,9 @@ async def startup_event():
     # 2. Run environment checks (Non-blocking background task)
     asyncio.create_task(init_db_task())
 
-    # 3. Start the watchdog observer for frontend (dev only, safe to skip on Render)
-    if not os.getenv("RENDER"):
-        try:
-            frontend_path = str(PROJECT_ROOT / "frontend")
-            if os.path.exists(frontend_path):
-                handler = LiveReloadHandler(reload_queue)
-                observer = Observer()
-                observer.schedule(handler, frontend_path, recursive=True)
-                observer.start()
-                app.state.observer = observer
-                asyncio.create_task(broadcast_reloads())
-        except Exception as e:
-            print(f"Live reload watcher not started: {e}")
+    pass
 
-@app.on_event("shutdown")
-def shutdown_event():
-    if hasattr(app.state, "observer"):
-        app.state.observer.stop()
-        app.state.observer.join()
+
 
 # -----------------------------
 # Request Models
