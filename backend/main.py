@@ -17,11 +17,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 # pyrefly: ignore [missing-import]
 from pydantic import BaseModel
-# pyrefly: ignore [missing-import]
-from watchdog.observers import Observer
-# pyrefly: ignore [missing-import]
-from watchdog.events import FileSystemEventHandler
-
 # Local module imports
 from image_ai.hf_image_client import HFImageClient
 from llm.hf_client import HFClient
