@@ -965,6 +965,14 @@ async function loginStudent() {
     setButtonLoading(button, true, "Signing In...");
     resultBox.innerHTML = "";
 
+    // Cold start timeout UX for Render Free Tier
+    let isLoggingIn = true;
+    const timeoutMsg = setTimeout(() => {
+        if (isLoggingIn) {
+            showSuccess(resultBox, "Server is waking up. This may take up to 60 seconds on Render's free tier...");
+        }
+    }, 10000);
+
     try {
         const response = await fetch(`${API_BASE_URL}/login`, {
             method: "POST",
@@ -1006,8 +1014,10 @@ async function loginStudent() {
             showError(resultBox, data.message || "Login failed. Please check your credentials.");
         }
     } catch (error) {
-        showError(resultBox, `Connection error: ${error.message}`);
+        showError(resultBox, `Connection error: ${error.message}. Please check if the backend URL is correct.`);
     } finally {
+        isLoggingIn = false;
+        clearTimeout(timeoutMsg);
         setButtonLoading(button, false, "Sign In");
     }
 }

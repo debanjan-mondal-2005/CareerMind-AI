@@ -266,6 +266,7 @@ def register_student(first_name, middle_name, last_name, email, password):
         db.close()
 
 def login_student(student_key, password):
+    print(f"[AUTH] Login attempt for student_key: {student_key}")
     db = SessionLocal()
     try:
         pwd_hash = hash_password(password)
