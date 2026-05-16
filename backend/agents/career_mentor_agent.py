@@ -2,6 +2,7 @@ from llm.llm_client import LLMClient
 from rag.retriever import retrieve_relevant_chunks          
 from rag.pdf_vector_store import search_pdf_vector_db       
 from rag.chat_memory import search_chat_memory, store_chat_memory
+from rag.embedding_manager import detect_language, clean_response, is_casual_query
 import os
 # pyrefly: ignore [missing-import]
 from tavily import TavilyClient
@@ -13,7 +14,7 @@ class CareerMentorAgent:
         self.current_pdf = None
         
         tavily_key = os.getenv("TAVILY_API_KEY")
-        self.web_client = TavilyClient(api_key=tavily_key) if tavily_key else None
+        self.tavily = TavilyClient(api_key=tavily_key) if tavily_key else None
 
     def set_student_id(self, sid):
         self.student_id = sid
@@ -22,23 +23,25 @@ class CareerMentorAgent:
         if os.path.exists(pdf_path):
             self.current_pdf = pdf_path
         else:
-            raise FileNotFoundError(f"PDF not found: {pdf_path}")
+            print(f"⚠️ PDF not found at: {pdf_path}")
 
     def is_image_generation_request(self, user_question: str) -> bool:
-        image_keywords = [
-            "generate image", "draw", "create picture", "make a diagram",
-            "visualize", "illustrate", "create an image", "generate a diagram",
-            "image of", "draw a", "paint a", "generate a picture"
-        ]
+        image_keywords = ["generate image", "draw", "create picture", "make a diagram", "visualize", "illustrate"]
         q = user_question.lower()
         return any(kw in q for kw in image_keywords)
 
-    def _build_multi_source_prompt(self, user_question, student_profile, pdf_chunks=None, rag_chunks=None, web_results=None, memory_chunks=None):
+    def _build_multi_source_prompt(self, user_question, student_profile, pdf_chunks=None, rag_chunks=None, web_results=None, memory_chunks=None, language="en"):
         profile_text = self.format_student_profile(student_profile) if student_profile else "Not available"
         
         context = ""
         if memory_chunks:
-            context += "Past Relevant Conversation:\n" + f"Q: {memory_chunks.get('question')}\nA: {memory_chunks.get('answer')}" + "\n\n"
+            # memory_chunks is usually a list of dicts from search_chat_memory
+            if isinstance(memory_chunks, list) and len(memory_chunks) > 0:
+                context += "Past Relevant Conversation:\n"
+                for m in memory_chunks:
+                    context += f"Q: {m.get('question')}\nA: {m.get('answer')}\n"
+                context += "\n"
+                
         if pdf_chunks:
             context += "Document Context:\n" + "\n".join([c["text"] for c in pdf_chunks]) + "\n\n"
         if rag_chunks:
@@ -48,248 +51,143 @@ class CareerMentorAgent:
             for r in web_results:
                 context += f"- {r['title']}: {r['content']} (URL: {r['url']})\n"
         
-        system_prompt = f"""You are CareerMind AI, a world-class professional career mentor.
-        
+        system_prompt = f"""You are CareerMind AI, a professional AI career mentor.
+
 ABOUT THIS PLATFORM:
-CareerMind AI is an advanced AI-powered career mentorship platform developed by Debanjan Mondal. It provides personalized career roadmaps, skill gap analysis, interview preparation, and PDF document analysis (like CVs and Assignments) using cutting-edge RAG technology.
+CareerMind AI is an advanced career mentorship platform developed by Debanjan Mondal.
+
+Language behavior:
+- Detect the language used by the user.
+- If the user writes in Bengali script, answer in Bengali script.
+- If the user writes in English, answer in English.
+- If the user writes in Hindi, answer in Hindi.
+- If the user writes in Banglish/Hinglish, answer naturally and briefly.
+- Never repeat sentences.
+- Never repeat paragraphs.
+- Never generate looping text.
+- Never repeatedly say you can speak Bengali/Hindi/English.
+- Keep responses concise and human-like.
+- Avoid robotic transliteration.
+- Prefer native Bengali script over transliteration.
+- Answer directly and professionally.
+- If the user asks a simple question, give a short direct answer.
+- Technical terms like Python, SQL, Machine Learning, FastAPI, Docker, etc., MUST stay in English.
 
 Student Profile (Current Facts):
 {profile_text}
 
-Additional Context (PDF/RAG/Memory):
+Additional Context:
 {context if context else "No additional context found."}
 
-========================
-RESPONSE QUALITY RULES
-========================
-1. NEVER GIVE GENERIC ANSWERS: Avoid vague responses like "Learn frontend". Instead mention exact technologies (e.g., "Learn React.js with Tailwind CSS"), explain WHY they matter, their industry relevance, and learning order.
-2. ALWAYS STRUCTURE RESPONSES: When generating learning roadmaps or career guidance, use this structure:
-   1. Career Goal
-   2. Industry Role Explanation
-   3. Recommended Tech Stack
-   4. Learning Phases
-   5. Timeline
-   6. Projects Per Phase
-   7. Industry Skills
-   8. Deployment & DevOps
-   9. Interview Preparation
-   10. Advanced Topics
-   11. Career Outcome
-   12. What To Learn Next
-3. USE VISUAL HIERARCHY: Use clean formatting like:
-   PHASE 1 — Fundamentals
-   ├── HTML
-   ├── CSS
-   ├── JavaScript
-   └── Git & GitHub
-   Do NOT generate huge unreadable paragraphs.
-4. ALWAYS INCLUDE:
-   - Timeline (e.g., Beginner: 2 Months)
-   - Difficulty Level
-   - Real Projects for EVERY phase.
-5. MAKE ANSWERS INDUSTRY-LEVEL: Always include topics like Git/GitHub, REST APIs, Authentication, JWT, Deployment, Docker Basics, CI/CD Basics, Cloud Platforms, API Testing, Debugging, Environment Variables, Security Basics.
-6. PERSONALIZATION ENGINE: Use the user's profile, skills, domain, career goal, education level, and previous history to personalize recommendations.
-7. NEVER SOUND LIKE A TEXTBOOK: Avoid robotic wording. Instead of "Frontend development is the process of creating user interfaces," write "Frontend development focuses on building interactive user experiences that users directly interact with in browsers."
-8. ALWAYS INCLUDE CAREER OUTCOME: List Possible Career Roles and Expected Skills After Completion.
-9. ALWAYS INCLUDE NEXT STEP GUIDANCE: At the end include "What To Learn Next" (e.g., "After MERN Stack: -> TypeScript").
-10. ANSWER STYLE: Responses must feel intelligent, mentor-like, strategic, practical, modern, production-oriented, and visually organized.
-11. IF USER ASKS FOR ROADMAP: Always include exact technologies, order of learning, estimated duration, projects, career outcome, deployment path, interview prep, and advanced roadmap.
-12. IF USER ASKS FOR PROJECTS: Provide beginner, intermediate, advanced, and industry-level projects along with deployment suggestions and recommended tech stack.
-13. OUTPUT FORMAT: Use headings, bullets, tables, roadmap trees, timelines, and project lists. Avoid giant paragraphs.
-14. MOST IMPORTANT: Behave like an industry mentor, career strategist, and technical advisor. Do NOT sound like a random AI generating generic content.
-
-OTHER IMPORTANT INSTRUCTIONS:
-1. DOCUMENT EXTRACTION: If a document (PDF/CV) is uploaded, prioritize information found in the 'Document Context'.
-2. STRICTURE TRUTH: Provide details found in the 'Document Context' immediately without saying you can't find it.
-3. CONCISENESS & POLITENESS: Be extremely direct for technical questions. However, if the user says 'Thank you', respond with a warm closing.
-4. CLOSING CHATS: If the user says 'Goodbye', respond with a friendly closing.
-5. NO REPETITIVE GREETINGS at the start of every message.
-6. SELECTIVE STRUCTURE: The 12-point structure and visual hierarchy rules apply ONLY to career guidance, roadmaps, and technical advice. For simple gratitude (e.g., "Thank you"), greetings, or small talk, keep the response short, warm, and professional.
+RESPONSE STRUCTURE (for technical advice/roadmaps only):
+1. Career Goal
+2. Industry Role Explanation
+3. Recommended Tech Stack
+4. Learning Phases
+5. Timeline
+6. Projects Per Phase
+7. Industry Skills
+8. Deployment & DevOps
+9. Interview Preparation
+10. What To Learn Next
 """
         user_prompt = f"Question: {user_question}\nAnswer:"
-        
         return system_prompt, user_prompt
 
-    def is_llm_error(self, response):
-        if not response:
-            return True
-        resp = str(response).lower()
-        return any(kw in resp for kw in [
-            "llm error", "resource_exhausted", "429",
-            "quota", "rate limit"
-        ])
-
-    def _search_web(self, query):
-        if not self.web_client:
-            return None
-        try:
-            response = self.web_client.search(query=query, max_results=3, search_depth="advanced")
-            return response.get("results", [])
-        except Exception as e:
-            print(f"Web search error: {e}")
-            return None
-
-    def answer_question(self, student_profile, user_question):
-        """Non-streaming version for standard endpoints."""
-        full_answer = ""
-        is_image = False
-        image_url = ""
-        
-        for token in self.stream_answer_question(student_profile, user_question):
-            if "IMAGE_URL:" in token:
-                parts = token.split("IMAGE_URL:")
-                full_answer = parts[0].replace("🎨 Generating your image, please wait a moment...\n\n", "").strip()
-                image_url = parts[1].strip()
-                is_image = True
-                break
-            full_answer += token
-            
-        if is_image:
-            return {
-                "type": "image",
-                "answer": full_answer or "Generated an image for you.",
-                "url": image_url
-            }
-        
-        return {
-            "type": "text",
-            "answer": full_answer.strip(),
-            "sources": [] # Standard endpoints don't need detailed sources for now, but we keep the key for compatibility
-        }
-
-    def stream_answer_question(self, student_profile, user_question):
+    def stream_answer_question(self, student_profile, user_question: str):
+        """
+        Orchestrates retrieval and generation in a streaming fashion.
+        """
         if self.is_image_generation_request(user_question):
             yield "🎨 Generating your image, please wait a moment...\n\n"
             try:
                 from image_ai.hf_image_client import generate_image
                 url_or_error = generate_image(user_question)
-                
                 if url_or_error.startswith("Error:"):
                     yield f"⚠️ {url_or_error}"
                 else:
-                    yield f"Image generated successfully! Now you can download it.\n\nIMAGE_URL:{url_or_error}"
+                    yield f"Image generated successfully!\n\nIMAGE_URL:{url_or_error}"
             except Exception as e:
                 yield f"⚠️ Failed to generate image: {str(e)}"
             return
 
-        # 0. Search Past Chat Memory
-        memory_chunks = None
-        if self.student_id:
-            try:
-                memory_chunks = search_chat_memory(self.student_id, user_question)
-            except: pass
+        # 1. Detect language and casual intent
+        detected_lang = detect_language(user_question)
+        casual = is_casual_query(user_question)
 
-        # 1. PDF Search
+        # 2. Context retrieval
+        if not student_profile and self.student_id:
+            from database.db import get_student_profile_data
+            student_profile = get_student_profile_data(self.student_id)
+        
+        # Limit memory to last 5 relevant messages (History Limit)
+        memory_chunks = search_chat_memory(self.student_id, user_question, top_k=5) if self.student_id else []
+        
         pdf_chunks = []
-        if self.current_pdf:
-            # A. Semantic Search
-            pdf_chunks = search_pdf_vector_db(self.student_id, user_question, top_k=5, threshold=0.1)
-            
-            try:
-                from document_ai.pdf_reader import extract_text_from_pdf
-                pdf_text = extract_text_from_pdf(self.current_pdf)
-                
-                query_lower = user_question.lower()
-                
-                # B. General Document Question Detection (e.g., "What is this PDF about?")
-                doc_keywords = ["about this pdf", "summarize", "what is this", "tell me about this", "extract", "contain", "pdf about"]
-                is_general_doc_q = any(kw in query_lower for kw in doc_keywords)
-                
-                if is_general_doc_q or not pdf_chunks:
-                    # Add a summary chunk (first 2000 chars) for general overview
-                    summary_context = pdf_text[:2500]
-                    pdf_chunks.append({"text": f"[DOCUMENT OVERVIEW]:\n{summary_context}", "score": 1.5})
-                
-                # C. Enhanced keyword search with synonyms
-                search_keywords = [w.strip("?,.!") for w in query_lower.split() if len(w) > 2]
-                
-                synonyms = {
-                    "cgpa": ["gpa", "marks", "percentage", "result", "grade", "pointer", "academic"],
-                    "university": ["college", "institute", "school", "education", "lpu"],
-                    "project": ["work", "experience", "developed", "built", "assignment"],
-                    "skills": ["proficient", "knowledge", "expertise", "technical", "languages"]
-                }
-                
-                expanded_keywords = set(search_keywords)
-                for k, syns in synonyms.items():
-                    if k in query_lower:
-                        expanded_keywords.update(syns)
-                
-                relevant_lines = []
-                lines = pdf_text.split('\n')
-                for i, line in enumerate(lines):
-                    line_lower = line.lower()
-                    if any(kw in line_lower for kw in expanded_keywords):
-                        start = max(0, i - 1)
-                        end = min(len(lines), i + 2)
-                        relevant_lines.append("\n".join(lines[start:end]))
-                
-                if relevant_lines:
-                    unique_context = "\n---\n".join(list(set(relevant_lines))[:15])
-                    pdf_chunks = (pdf_chunks or []) + [{"text": unique_context, "score": 1.2}]
-            except Exception as e:
-                print(f"PDF local search error: {e}")
-
-        # 2. RAG Search
-        rag_chunks = retrieve_relevant_chunks(user_question, top_k=3)
-
-        # 3. Web Search
+        rag_chunks = []
         web_results = []
-        q_lower = user_question.lower()
         
-        personal_terms = ["my name", "my university", "my cgpa", "my gpa", "my project", "my email", "i study", "about me", "who am i"]
-        conversational_terms = ["hello", "hi", "hey", "how are you"]
-        
-        is_personal = any(term in q_lower for term in personal_terms)
-        is_conversational = any(q_lower == term or q_lower.startswith(term + " ") for term in conversational_terms)
-        
-        if self.web_client and not is_personal and not is_conversational:
-            if len(q_lower.split()) > 2: 
-                web_results = self._search_web(user_question)
+        if not casual:
+            # PDF Search (Only if PDF is active or query is PDF-related)
+            pdf_related_keywords = ["pdf", "resume", "cv", "file", "document", "uploaded"]
+            is_pdf_query = any(kw in user_question.lower() for kw in pdf_related_keywords)
+            
+            if self.current_pdf or is_pdf_query:
+                pdf_chunks = search_pdf_vector_db(self.student_id, user_question) if self.student_id else []
+            
+            # RAG Search + Deduplication (Lightweight Retrieval)
+            raw_rag = retrieve_relevant_chunks(user_question, top_k=5)
+            seen = set()
+            for c in raw_rag:
+                text_clean = c["text"].strip().lower()
+                if text_clean not in seen:
+                    rag_chunks.append(c)
+                    seen.add(text_clean)
+            
+            print(f"[RAG] Retrieved {len(rag_chunks)} unique knowledge chunks")
+            
+            # Web Search
+            if self.tavily and len(user_question.split()) > 2:
+                try:
+                    web_results = self.tavily.search(user_question, search_depth="basic")["results"]
+                except: pass
 
-        # 4. Unified Prompting & Streaming
-        system_prompt, user_prompt = self._build_multi_source_prompt(user_question, student_profile, pdf_chunks, rag_chunks, web_results, memory_chunks)
+        # 3. Build prompts
+        system_prompt, user_prompt = self._build_multi_source_prompt(
+            user_question, student_profile, pdf_chunks, rag_chunks, web_results, memory_chunks, language=detected_lang
+        )
+        
+        # 4. Stream from LLM with stability constraints (Render Optimized)
+        gen_temp = 0.4 if casual else 0.5
+        gen_tokens = 250 if casual else 512
+        gen_top_p = 0.8
         
         full_response = ""
-        for token in self.llm.stream_response(user_prompt, system_prompt=system_prompt):
+        for token in self.llm.stream_response(user_prompt, system_prompt=system_prompt, temperature=gen_temp, max_tokens=gen_tokens, top_p=gen_top_p):
             full_response += token
             yield token
 
-        # 5. Background Storage (Parallel)
-        if self.student_id and full_response.strip():
+        # 5. Cleanup and store
+        print(f"[CLEANUP] Processing AI response (length: {len(full_response)})")
+        cleaned = clean_response(full_response)
+        if self.student_id and cleaned.strip():
             import threading
             threading.Thread(
                 target=store_chat_memory, 
-                args=(self.student_id, user_question, full_response),
+                args=(self.student_id, user_question, cleaned),
                 daemon=True
             ).start()
 
+    def answer_question(self, student_profile, user_question):
+        full_answer = ""
+        for token in self.stream_answer_question(student_profile, user_question):
+            if "IMAGE_URL:" in token:
+                return {"type": "image", "answer": "Image generated.", "url": token.split("IMAGE_URL:")[1]}
+            full_answer += token
+        return {"type": "text", "answer": clean_response(full_answer), "sources": []}
+
     def format_student_profile(self, profile):
+        if not profile: return "Not available"
         if profile.get("student_type") == "school":
-            return f"""
-Name: {profile.get("full_name", "Student")}
-Student Type: School Student
-Class/Grade: {profile.get("grade_class", "")}
-Board: {profile.get("board", "")}
-Stream/Interest: {profile.get("stream_interest", "")}
-Career Goal: {profile.get("career_goal", "")}
-Favorite Subjects: {profile.get("favorite_subjects", "")}
-Weak Subjects: {profile.get("weak_subjects", "")}
-Skills Interested In: {profile.get("skills_interested", "")}
-Current Skill Level: {profile.get("current_skill_level", "")}
-Learning Style: {profile.get("learning_style", "")}
-Future Target (Exam/Goal): {profile.get("future_target", "")}
-Notes: {profile.get("notes", "")}
-"""
-        else:
-            return f"""
-Name: {profile.get("full_name", "Student")}
-Student Type: College Student
-Degree: {profile.get("degree", "")}
-Semester: {profile.get("semester", "")}
-Specialization: {profile.get("specialization", "")}
-Career Goal: {profile.get("career_goal", "")}
-Current Skills: {profile.get("skills", "")}
-Weak Areas: {profile.get("weak_areas", "")}
-Study Hours: {profile.get("daily_study_hours", "")}
-"""
+            return f"Name: {profile.get('full_name')}\nGrade: {profile.get('grade_class')}\nGoal: {profile.get('career_goal')}"
+        return f"Name: {profile.get('full_name')}\nDegree: {profile.get('degree')}\nGoal: {profile.get('career_goal')}"

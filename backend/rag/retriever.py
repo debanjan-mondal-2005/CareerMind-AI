@@ -1,14 +1,19 @@
-import os
+import sys
 import json
 from pathlib import Path
+
+# Add backend to path for standalone execution
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+if str(PROJECT_ROOT / "backend") not in sys.path:
+    sys.path.append(str(PROJECT_ROOT / "backend"))
+
 import numpy as np
-from huggingface_hub import InferenceClient
+from rag.embedding_manager import get_embedding
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 VECTOR_DB_PATH = PROJECT_ROOT / "backend" / "rag" / "vector_db.json"
-
-# Lightweight embedding model via Cloud API
-EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 _vector_db = None
 
@@ -22,30 +27,16 @@ def load_vector_db():
     return _vector_db
 
 def expand_query(query):
+    # Keep expansion but let the embedding manager handle the heavy lifting
     return f"Search for career guidance, skills, roadmaps, and interview prep related to: {query}"
-
-def get_embedding(text):
-    """
-    Generate embedding for a single text using the Hugging Face Cloud API.
-    """
-    hf_token = os.getenv("HF_TOKEN")
-    if not hf_token:
-        print("⚠️ HF_TOKEN is missing. Returning dummy embedding.")
-        return np.random.rand(384).tolist()
-        
-    client = InferenceClient(token=hf_token)
-    try:
-        response = client.feature_extraction(text=[text], model=EMBEDDING_MODEL_NAME)
-        # Returns a 2D array, get the first item
-        emb = response.tolist() if hasattr(response, 'tolist') else response
-        return emb[0] if len(emb) > 0 else np.random.rand(384).tolist()
-    except Exception as e:
-        print(f"⚠️ Hugging Face API Error in Retriever: {e}")
-        return np.random.rand(384).tolist()
 
 def cosine_similarity(vec1, vec2):
     vec1 = np.array(vec1)
     vec2 = np.array(vec2)
+    if vec1.shape != vec2.shape:
+        # Avoid crashing if user hasn't rebuilt the vector DB after changing models
+        print(f"⚠️ Embedding dimension mismatch: {vec1.shape} vs {vec2.shape}. Please run build_vector_db.py.")
+        return 0
     dot_product = np.dot(vec1, vec2)
     norm_1 = np.linalg.norm(vec1)
     norm_2 = np.linalg.norm(vec2)

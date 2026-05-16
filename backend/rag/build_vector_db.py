@@ -2,35 +2,23 @@ import os
 import json
 import sys
 from pathlib import Path
+
+# Add project root and backend to path
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.append(str(PROJECT_ROOT / "backend"))
+sys.path.append(str(PROJECT_ROOT))
+
 import numpy as np
-from huggingface_hub import InferenceClient
+from rag.embedding_manager import get_embedding
 from dotenv import load_dotenv
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 KNOWLEDGE_BASE_DIR = PROJECT_ROOT / "knowledge_base"
 VECTOR_DB_PATH = PROJECT_ROOT / "backend" / "rag" / "vector_db.json"
 
-# Use the same lightweight model as retriever.py
-EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-
 def _get_embedding(text):
-    hf_token = os.getenv("HF_TOKEN")
-    if not hf_token:
-        print("⚠️ HF_TOKEN is missing. Returning dummy embedding.")
-        return np.random.rand(384).tolist()
-        
-    client = InferenceClient(token=hf_token)
-    try:
-        response = client.feature_extraction(text=[text], model=EMBEDDING_MODEL_NAME)
-        emb = response.tolist() if hasattr(response, 'tolist') else response
-        return emb[0] if len(emb) > 0 else np.random.rand(384).tolist()
-    except Exception as e:
-        print(f"⚠️ Hugging Face API Error in Builder: {e}")
-        return np.random.rand(384).tolist()
+    return get_embedding(text)
 
 def read_txt_files():
     """Read all .txt files from the knowledge base folder."""

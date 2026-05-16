@@ -24,3 +24,4 @@ grpcio-status>=1.75.1
 python-dateutil
 tavily-python
 Pillow
+sentence-transformers

@@ -1,37 +1,30 @@
-import os
+import sys
 import json
-import numpy as np
 from pathlib import Path
-from document_ai.pdf_reader import extract_text_from_pdf
-from huggingface_hub import InferenceClient
 
-EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+# Add backend to path for standalone execution
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+if str(PROJECT_ROOT / "backend") not in sys.path:
+    sys.path.append(str(PROJECT_ROOT / "backend"))
+
+import numpy as np
+from document_ai.pdf_reader import extract_text_from_pdf
+from rag.embedding_manager import get_embedding, get_embeddings
+
 PDF_VECTORS_DIR = Path(__file__).resolve().parent / "pdf_vectors"
 PDF_VECTORS_DIR.mkdir(exist_ok=True)
 
 def _get_embeddings(texts):
-    """Get embeddings from Hugging Face Cloud API"""
-    hf_token = os.getenv("HF_TOKEN")
-    if not hf_token:
-        print("⚠️ HF_TOKEN is missing. Returning dummy embeddings.")
-        return [np.random.rand(384).tolist() for _ in texts]
-        
-    client = InferenceClient(token=hf_token)
-    try:
-        # The feature-extraction task returns embeddings
-        response = client.feature_extraction(
-            text=texts,
-            model=EMBEDDING_MODEL_NAME
-        )
-        return response.tolist() if hasattr(response, 'tolist') else response
-    except Exception as e:
-        print(f"⚠️ Hugging Face API Error: {e}")
-        # Fallback to dummy embeddings if API fails (so app doesn't crash)
-        return [np.random.rand(384).tolist() for _ in texts]
+    """Get embeddings from embedding manager"""
+    return get_embeddings(texts)
 
 def cosine_similarity(vec1, vec2):
     vec1 = np.array(vec1)
     vec2 = np.array(vec2)
+    if vec1.shape != vec2.shape:
+        return -1.0 # Mismatch indicator
     dot = np.dot(vec1, vec2)
     norm1 = np.linalg.norm(vec1)
     norm2 = np.linalg.norm(vec2)
@@ -88,8 +81,14 @@ def search_pdf_vector_db(student_id, query, top_k=3, threshold=0.4):
     query_emb = embeddings[0]
     
     results = []
+    mismatch_warned = False
     for item in data:
         sim = cosine_similarity(query_emb, item["embedding"])
+        if sim == -1.0:
+            if not mismatch_warned:
+                print(f"⚠️ PDF context for Student {student_id} is outdated (dimension mismatch). Skipping PDF search. Please re-upload PDF to sync.")
+                mismatch_warned = True
+            return [] # Return empty if dimensions mismatch
         if sim >= threshold:
             results.append({"text": item["text"], "score": float(sim)})
     results.sort(key=lambda x: x["score"], reverse=True)

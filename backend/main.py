@@ -22,6 +22,7 @@ from image_ai.hf_image_client import HFImageClient
 from llm.hf_client import HFClient
 from document_ai.pdf_reader import extract_text_from_pdf
 from document_ai.pdf_qa_agent import PDFQAAgent
+from rag.embedding_manager import get_model
 
 app = FastAPI(
     title="CareerMind AI API",
@@ -115,6 +116,10 @@ async def startup_event():
 
     # 2. Run environment checks (Non-blocking background task)
     asyncio.create_task(init_db_task())
+
+    # 3. Warm up embedding model (Disabled for Render Free Tier stability)
+    # if os.getenv("USE_INDIC_EMBEDDINGS", "false").lower() == "true":
+    #     asyncio.create_task(asyncio.to_thread(get_model))
 
     pass
 
@@ -445,7 +450,7 @@ def process_ai_profile_background(student_id: int):
     try:
         onboarding_answers = get_onboarding_answers(student_id)
         if onboarding_answers:
-            answers_list = [{"question": row["question"], "answer": row["answer"]} for row in onboarding_answers]
+            answers_list = [{"question": row[0], "answer": row[1]} for row in onboarding_answers]
             profile_agent = ProfileBuilderAgent()
             profile_result = profile_agent.build_profile(answers_list)
             if profile_result["success"]:
