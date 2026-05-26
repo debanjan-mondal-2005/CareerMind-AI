@@ -61,6 +61,7 @@ class Student(Base):
     student_type = Column(String, nullable=True) # 'school' or 'college'
     email_sent_status = Column(String, nullable=True, default="pending") # pending, sent, failed
     email_sent_at = Column(String, nullable=True)
+    language_mode = Column(String, nullable=True, default="english")
     created_at = Column(String, nullable=False)
 
 class OnboardingAnswer(Base):
@@ -137,7 +138,8 @@ def migrate_student_table():
         # Define columns to add
         new_columns = [
             ("email_sent_status", "VARCHAR", "DEFAULT 'pending'"),
-            ("email_sent_at", "VARCHAR", "NULL")
+            ("email_sent_at", "VARCHAR", "NULL"),
+            ("language_mode", "VARCHAR", "DEFAULT 'english'")
         ]
 
         migration_happened = False
@@ -151,11 +153,21 @@ def migrate_student_table():
             else:
                 print(f"[MIGRATION] {col_name} already exists")
 
-        if migration_happened:
-            db.commit()
-            print("[MIGRATION] Migration complete and committed")
-        else:
-            print("[MIGRATION] No migration needed")
+        # Ensure all indexes exist
+        print("[MIGRATION] Checking/creating database indexes...")
+        try:
+            db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_students_email ON students(email)"))
+            db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_students_student_key ON students(student_key)"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_onboarding_answers_student_id ON onboarding_answers(student_id)"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_student_profiles_student_id ON student_profiles(student_id)"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_school_student_profiles_student_id ON school_student_profiles(student_id)"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_chat_history_student_id ON chat_history(student_id)"))
+            print("[MIGRATION] Database indexes verified/created.")
+        except Exception as idx_err:
+            print(f"[MIGRATION] Non-critical warning creating indexes: {idx_err}")
+
+        db.commit()
+        print("[MIGRATION] Migration complete and committed")
 
     except Exception as e:
         db.rollback()
@@ -481,6 +493,35 @@ def save_chat_history(student_id, user_message, ai_response, sources_used):
         db.add(history)
         db.commit()
         return {"success": True}
+    finally:
+        db.close()
+
+def get_student_language(student_id: int) -> str:
+    db = SessionLocal()
+    try:
+        student = db.query(Student).filter(Student.id == student_id).first()
+        if student and student.language_mode:
+            return student.language_mode
+        return "english"
+    except Exception as e:
+        print(f"[DB] Error getting language preference: {e}")
+        return "english"
+    finally:
+        db.close()
+
+def update_student_language(student_id: int, language_mode: str) -> dict:
+    db = SessionLocal()
+    try:
+        student = db.query(Student).filter(Student.id == student_id).first()
+        if student:
+            student.language_mode = language_mode
+            db.commit()
+            return {"success": True}
+        return {"success": False, "message": "Student not found"}
+    except Exception as e:
+        db.rollback()
+        print(f"[DB] Error updating language preference: {e}")
+        return {"success": False, "message": str(e)}
     finally:
         db.close()
 

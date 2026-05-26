@@ -6,6 +6,8 @@ from rag.embedding_manager import detect_language, clean_response, is_casual_que
 import os
 # pyrefly: ignore [missing-import]
 from tavily import TavilyClient
+from database.db import get_student_language, update_student_language
+from utils.language_manager import detect_language_command
 
 class CareerMentorAgent:
     def __init__(self):
@@ -51,27 +53,28 @@ class CareerMentorAgent:
             for r in web_results:
                 context += f"- {r['title']}: {r['content']} (URL: {r['url']})\n"
         
+        if language == "bengali":
+            lang_behavior = """Language behavior:
+- You must respond fully and exclusively in Bengali (বাংলা).
+- Do not use English words or sentences, except for technical terms (e.g. Python, SQL, Machine Learning, FastAPI, Docker, DevOps, git, etc.) which MUST stay in English.
+- Prefer native Bengali script over transliteration/Banglish.
+- Keep responses concise and professional.
+- Never repeat sentences or paragraphs.
+- If the user asks a simple question or a greeting, give a short direct answer in Bengali."""
+        else:
+            lang_behavior = """Language behavior:
+- You must respond fully and exclusively in English.
+- Do not use Bengali script or words under any circumstances.
+- Keep responses concise and professional.
+- Never repeat sentences or paragraphs.
+- If the user asks a simple question or a greeting, give a short direct answer in English."""
+
         system_prompt = f"""You are CareerMind AI, a professional AI career mentor.
 
 ABOUT THIS PLATFORM:
 CareerMind AI is an advanced career mentorship platform developed by Debanjan Mondal.
 
-Language behavior:
-- Detect the language used by the user.
-- If the user writes in Bengali script, answer in Bengali script.
-- If the user writes in English, answer in English.
-- If the user writes in Hindi, answer in Hindi.
-- If the user writes in Banglish/Hinglish, answer naturally and briefly.
-- Never repeat sentences.
-- Never repeat paragraphs.
-- Never generate looping text.
-- Never repeatedly say you can speak Bengali/Hindi/English.
-- Keep responses concise and human-like.
-- Avoid robotic transliteration.
-- Prefer native Bengali script over transliteration.
-- Answer directly and professionally.
-- If the user asks a simple question, give a short direct answer.
-- Technical terms like Python, SQL, Machine Learning, FastAPI, Docker, etc., MUST stay in English.
+{lang_behavior}
 
 Student Profile (Current Facts):
 {profile_text}
@@ -111,8 +114,17 @@ RESPONSE STRUCTURE (for technical advice/roadmaps only):
                 yield f"⚠️ Failed to generate image: {str(e)}"
             return
 
-        # 1. Detect language and casual intent
-        detected_lang = detect_language(user_question)
+        # 1. Look up student language settings and detect language command
+        lang_mode = "english"
+        if self.student_id:
+            lang_mode = get_student_language(self.student_id)
+            
+        switch_cmd = detect_language_command(user_question)
+        if switch_cmd:
+            lang_mode = switch_cmd
+            if self.student_id:
+                update_student_language(self.student_id, lang_mode)
+
         casual = is_casual_query(user_question)
 
         # 2. Context retrieval
@@ -154,7 +166,7 @@ RESPONSE STRUCTURE (for technical advice/roadmaps only):
 
         # 3. Build prompts
         system_prompt, user_prompt = self._build_multi_source_prompt(
-            user_question, student_profile, pdf_chunks, rag_chunks, web_results, memory_chunks, language=detected_lang
+            user_question, student_profile, pdf_chunks, rag_chunks, web_results, memory_chunks, language=lang_mode
         )
         
         # 4. Stream from LLM with stability constraints (Render Optimized)

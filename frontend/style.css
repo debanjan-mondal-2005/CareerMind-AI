@@ -1286,3 +1286,20 @@ select {
     pointer-events: auto !important;
     box-shadow: 0 12px 26px rgba(59, 130, 246, 0.25) !important;
 }
+
+/* --- Language Indicator --- */
+.language-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    color: var(--accent);
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    margin-right: 15px;
+    backdrop-filter: blur(10px);
+}

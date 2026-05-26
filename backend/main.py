@@ -347,9 +347,10 @@ def health_check():
 # Register / Login / Onboarding / Profile
 # ----------------------------------------------------------------------
 @app.post("/register")
-def register(request: RegisterRequest, background_tasks: BackgroundTasks):
+async def register(request: RegisterRequest, background_tasks: BackgroundTasks):
     # Pass background_tasks to email sending later, but first register in DB
-    result = register_student(
+    result = await asyncio.to_thread(
+        register_student,
         request.first_name,
         request.middle_name,
         request.last_name,
@@ -420,7 +421,11 @@ async def resend_student_key_endpoint(request: ResendStudentKeyRequest, backgrou
 
 @app.post("/login")
 def login(request: LoginRequest):
-    return login_student(request.student_key, request.password)
+    res = login_student(request.student_key, request.password)
+    if res.get("success") and "student" in res:
+        from database.db import get_student_language
+        res["language_mode"] = get_student_language(res["student"]["id"])
+    return res
 
 @app.post("/onboarding")
 def save_onboarding(request: OnboardingRequest, background_tasks: BackgroundTasks):
@@ -538,6 +543,16 @@ def career_chat(request: CareerChatRequest):
     if not profile:
         return {"success": False, "message": "Student profile not found. Please complete onboarding and profile builder first."}
 
+    from database.db import get_student_language, update_student_language
+    from utils.language_manager import detect_language_command
+
+    question = request.question.strip()
+    lang_mode = get_student_language(student["id"])
+    switch_cmd = detect_language_command(question)
+    if switch_cmd:
+        lang_mode = switch_cmd
+        update_student_language(student["id"], lang_mode)
+
     agent = CareerMentorAgent()
     agent.set_student_id(student["id"])
 
@@ -545,13 +560,13 @@ def career_chat(request: CareerChatRequest):
     if pdf_data:
         agent.set_current_pdf(pdf_data["path"])
 
-    result = agent.answer_question(profile, request.question)
+    result = agent.answer_question(profile, question)
 
     if is_valid_ai_response(result.get("answer", "")):
         try:
             save_chat_history(
                 student_id=student["id"],
-                user_message=request.question,
+                user_message=question,
                 ai_response=result.get("answer", ""),
                 sources_used=json.dumps(result.get("sources", []))
             )
@@ -560,6 +575,7 @@ def career_chat(request: CareerChatRequest):
 
     return {
         "success": True,
+        "language_mode": lang_mode,
         **result
     }
 
@@ -576,7 +592,15 @@ def smart_chat(request: CareerChatRequest):
     if not profile:
         return {"success": False, "message": "Student profile not found."}
 
+    from database.db import get_student_language, update_student_language
+    from utils.language_manager import detect_language_command
+
     question = request.question.strip()
+    lang_mode = get_student_language(student["id"])
+    switch_cmd = detect_language_command(question)
+    if switch_cmd:
+        lang_mode = switch_cmd
+        update_student_language(student["id"], lang_mode)
 
     # Main AI Agent (CareerMentorAgent)
     agent = CareerMentorAgent()
@@ -600,6 +624,7 @@ def smart_chat(request: CareerChatRequest):
     return {
         "success": True,
         "route": "career_mentor_agent",
+        "language_mode": lang_mode,
         **result
     }
 
@@ -809,8 +834,17 @@ async def smart_chat_stream(request: CareerChatRequest):
     if not profile:
         return StreamingResponse(error_gen("Student profile not found. Please complete onboarding first."), media_type="text/plain")
 
+    from database.db import get_student_language, update_student_language
+    from utils.language_manager import detect_language_command
+
     question = request.question.strip()
     
+    lang_mode = get_student_language(student["id"])
+    switch_cmd = detect_language_command(question)
+    if switch_cmd:
+        lang_mode = switch_cmd
+        update_student_language(student["id"], lang_mode)
+
     agent = CareerMentorAgent()
     agent.set_student_id(student["id"])
     pdf_data = PDF_MEMORY.get(student["id"])
@@ -835,4 +869,5 @@ async def smart_chat_stream(request: CareerChatRequest):
         except Exception as e:
             yield f"\n\n⚠️ Error during streaming: {str(e)}"
 
-    return StreamingResponse(token_generator(), media_type="text/plain")
+    headers = {"X-Language-Mode": lang_mode, "Access-Control-Expose-Headers": "X-Language-Mode"}
+    return StreamingResponse(token_generator(), media_type="text/plain", headers=headers)

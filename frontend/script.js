@@ -5,6 +5,28 @@ const API_BASE_URL = (window.location.hostname === 'localhost' || window.locatio
     ? "http://localhost:8000"
     : PRODUCTION_BACKEND_URL;
 
+// Backend warmup ping logic
+async function pingBackendWarmup() {
+    console.log("Warming up backend...");
+    for (let i = 0; i < 5; i++) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/health`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.status === "healthy" || data.status === "degraded") {
+                    console.log("Backend warmed up successfully!");
+                    break;
+                }
+            }
+        } catch (err) {
+            console.log(`Backend warmup attempt ${i+1} failed, retrying...`, err);
+        }
+        await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+}
+// Trigger warmup immediately
+pingBackendWarmup();
+
 // Global state
 let studentKey = localStorage.getItem("student_key") || "";
 let studentPassword = localStorage.getItem("student_password") || "";
@@ -360,6 +382,14 @@ function showDashboard() {
     document.getElementById("dashboard-section").classList.remove("hidden");
     updateWelcomeMessage();
     renderHistoryList();
+
+    // Sync language badge
+    const langBadge = document.getElementById("language-indicator");
+    if (langBadge) {
+        langBadge.style.display = "flex";
+        const currentLang = localStorage.getItem("language_mode") || "english";
+        syncLanguageUI(currentLang);
+    }
 
     const input = document.getElementById("user-question");
     if (input) input.focus();
@@ -775,24 +805,61 @@ async function registerStudent() {
     // Cold start timeout UX
     const timeoutMsg = setTimeout(() => {
         if (isRegistering) {
-            showSuccess(resultBox, "Server is starting. This may take a few moments...");
+            showSuccess(resultBox, "Starting secure AI services...");
         }
-    }, 15000);
+    }, 5000);
+
+    let response;
+    let attempts = 3;
+    let delay = 3000;
+    let lastError = null;
+
+    for (let i = 0; i < attempts; i++) {
+        try {
+            response = await fetch(`${API_BASE_URL}/register`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    first_name: firstName,
+                    middle_name: middleName,
+                    last_name: lastName,
+                    email: email,
+                    password: password
+                })
+            });
+
+            if (response.ok || response.status === 400 || response.status === 422) {
+                lastError = null;
+                break;
+            }
+            
+            lastError = new Error(`Server returned status ${response.status}`);
+            if (i < attempts - 1) {
+                console.log(`Server returned status ${response.status}. Retrying registration in ${delay/1000}s...`);
+                showSuccess(resultBox, "Starting secure AI services...");
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        } catch (error) {
+            lastError = error;
+            if (i < attempts - 1) {
+                console.log(`Fetch error during registration: ${error.message}. Retrying in ${delay/1000}s...`);
+                showSuccess(resultBox, "Starting secure AI services...");
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+
+    clearTimeout(timeoutMsg);
+
+    if (lastError) {
+        console.error("Registration error after retries:", lastError);
+        showError(resultBox, "Starting secure AI services timed out. Please try again.");
+        isRegistering = false;
+        setButtonLoading(button, false, "Create Account");
+        return;
+    }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/register`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                first_name: firstName,
-                middle_name: middleName,
-                last_name: lastName,
-                email: email,
-                password: password
-            })
-        });
-
-        clearTimeout(timeoutMsg);
         const data = await response.json();
 
         if (data.registration && data.registration.success) {
@@ -807,9 +874,8 @@ async function registerStudent() {
             showError(resultBox, data.registration?.message || "Registration failed. Please try again.");
         }
     } catch (error) {
-        clearTimeout(timeoutMsg);
-        console.error("Registration error:", error);
-        showError(resultBox, "Server connection failed. Please try again later.");
+        console.error("Failed to parse registration response:", error);
+        showError(resultBox, "Server response was invalid. Please try again.");
     } finally {
         isRegistering = false;
         setButtonLoading(button, false, "Create Account");
@@ -969,16 +1035,55 @@ async function loginStudent() {
     let isLoggingIn = true;
     const timeoutMsg = setTimeout(() => {
         if (isLoggingIn) {
-            showSuccess(resultBox, "Server is waking up. This may take up to 60 seconds on Render's free tier...");
+            showSuccess(resultBox, "Starting secure AI services...");
         }
-    }, 10000);
+    }, 5000);
+
+    let response;
+    let attempts = 3;
+    let delay = 3000;
+    let lastError = null;
+
+    for (let i = 0; i < attempts; i++) {
+        try {
+            response = await fetch(`${API_BASE_URL}/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ student_key: key, password: password })
+            });
+
+            if (response.ok || response.status === 400 || response.status === 401 || response.status === 422) {
+                lastError = null;
+                break;
+            }
+
+            lastError = new Error(`Server returned status ${response.status}`);
+            if (i < attempts - 1) {
+                console.log(`Server returned status ${response.status}. Retrying login in ${delay/1000}s...`);
+                showSuccess(resultBox, "Starting secure AI services...");
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        } catch (error) {
+            lastError = error;
+            if (i < attempts - 1) {
+                console.log(`Fetch error during login: ${error.message}. Retrying in ${delay/1000}s...`);
+                showSuccess(resultBox, "Starting secure AI services...");
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+
+    isLoggingIn = false;
+    clearTimeout(timeoutMsg);
+
+    if (lastError) {
+        console.error("Login error after retries:", lastError);
+        showError(resultBox, "Starting secure AI services timed out. Please try again.");
+        setButtonLoading(button, false, "Sign In");
+        return;
+    }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ student_key: key, password: password })
-        });
         const data = await response.json();
         if (data.success) {
             clearSession(); // Wipe any old data before logging in
@@ -990,6 +1095,7 @@ async function loginStudent() {
             localStorage.setItem("student_key", studentKey);
             localStorage.setItem("student_password", studentPassword);
             localStorage.setItem("student_first_name", studentFirstName);
+            localStorage.setItem("language_mode", data.language_mode || "english");
 
             // Reload user-specific history
             loadChatHistories();
@@ -1014,10 +1120,9 @@ async function loginStudent() {
             showError(resultBox, data.message || "Login failed. Please check your credentials.");
         }
     } catch (error) {
-        showError(resultBox, `Connection error: ${error.message}. Please check if the backend URL is correct.`);
+        console.error("Failed to parse login response:", error);
+        showError(resultBox, "Server response was invalid. Please try again.");
     } finally {
-        isLoggingIn = false;
-        clearTimeout(timeoutMsg);
         setButtonLoading(button, false, "Sign In");
     }
 }
@@ -1031,6 +1136,7 @@ function clearSession() {
     localStorage.removeItem("student_key");
     localStorage.removeItem("student_password");
     localStorage.removeItem("student_first_name");
+    localStorage.removeItem("language_mode");
 
     // Full session reset
     studentKey = "";
@@ -1039,6 +1145,12 @@ function clearSession() {
     chatHistories = [];
     currentChatId = null;
     currentChatMessages = [];
+
+    // Hide language badge
+    const langBadge = document.getElementById("language-indicator");
+    if (langBadge) {
+        langBadge.style.display = "none";
+    }
 
     const outputArea = document.getElementById("output-area");
     const input = document.getElementById("user-question");
@@ -1511,6 +1623,13 @@ async function askSmartAgent() {
             })
         });
 
+        // Sync language state from headers if present
+        const langModeHeader = response.headers.get("X-Language-Mode");
+        if (langModeHeader) {
+            localStorage.setItem("language_mode", langModeHeader);
+            syncLanguageUI(langModeHeader);
+        }
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder("utf-8");
 
@@ -1671,4 +1790,14 @@ function escapeHTML(str) {
 function isValidEmail(email) {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
+}
+
+function syncLanguageUI(lang) {
+    const langText = document.getElementById("language-text");
+    if (!langText) return;
+    if (lang === "bengali") {
+        langText.textContent = "Bengali Mode";
+    } else {
+        langText.textContent = "English Mode";
+    }
 }
